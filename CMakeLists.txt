@@ -185,7 +185,11 @@ else()
     # Non-Windows debug build with sanitizers
     set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 -ggdb3 -fsanitize=address,undefined -fno-omit-frame-pointer -Werror=reorder-init-list")
 endif()
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Werror=reorder-init-list")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Werror=reorder-init-list")
+else()
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+endif()
 
 # When using sanitizers, we need to link with them too
 #if(CMAKE_BUILD_TYPE STREQUAL "Debug")
