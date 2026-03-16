@@ -82,11 +82,7 @@ struct video_system_t {
         RGBA_t::make(0x00, 0xFF, 0x4A), // green (was 55) chosen from measuring @ 549nm
         RGBA_t::make(0xFF, 0xBF, 0x00)  // amber
     };
-   /*  uint32_t mono_color_table_u[DM_NUM_MONO_MODES] = { // NO LONGER USED
-        0xFFFFFFFF, // white
-        0x00FF4AFF, // green (was 55) chosen from measuring @ 549nm and https://academo.org/demos/wavelength-to-colour-relationship/
-        0xFFBF00FF, // amber
-    }; */
+
     video_system_t(computer_t *computer);
     ~video_system_t();
     void set_window_title(const char *title);
