@@ -7,6 +7,26 @@
 
 #define MAX_PD_BUFFER_SIZE 16
 
+// Zero-overhead little-endian multi-byte value with implicit conversion.
+// sizeof(packed_uint<N>) == N, alignment == 1 — no padding added to structs.
+template<int N>
+struct packed_uint {
+    uint8_t bytes[N] = {};
+
+    operator uint32_t() const {
+        uint32_t v = 0;
+        for (int i = N - 1; i >= 0; --i) v = (v << 8) | bytes[i];
+        return v;
+    }
+    packed_uint& operator=(uint32_t v) {
+        for (int i = 0; i < N; ++i) { bytes[i] = v & 0xFF; v >>= 8; }
+        return *this;
+    }
+};
+using packed16 = packed_uint<2>;
+using packed24 = packed_uint<3>;
+using packed32 = packed_uint<4>;
+
 struct media_t {
     FILE *file;
     media_descriptor *media;
@@ -18,17 +38,14 @@ struct pdblock_cmd_v1 {
     uint8_t version;
     uint8_t cmd;
     uint8_t dev;
-    uint8_t addr_lo;
-    uint8_t addr_hi;
-    uint8_t block_lo;
-    uint8_t block_hi;
+    packed16 addr;
+    packed16 block;
     uint8_t checksum;
 };
 
 struct pdblock_cmd_v2 {
     uint8_t version;
-    uint8_t cmd_blk_lo;
-    uint8_t cmd_blk_hi;
+    packed16 cmd_blk;
     uint8_t checksum;
 };
 
@@ -48,18 +65,14 @@ struct sp_cmd_standard { // CMDNUM is NOT replicated here.
 //   Standard
 struct sp_cmd_status_st : public sp_cmd_standard {
     uint8_t unit;
-    uint8_t status_p_0;
-    uint8_t status_p_1;
+    packed16 status_p;
     uint8_t status_code;
 };
 
 //   Extended
 struct sp_cmd_status_ex : public sp_cmd_standard {
     uint8_t unit;
-    uint8_t status_p_0;
-    uint8_t status_p_1;
-    uint8_t status_p_2;
-    uint8_t status_p_3;
+    packed32 status_p;
     uint8_t status_code;
 };
 
@@ -67,24 +80,15 @@ struct sp_cmd_status_ex : public sp_cmd_standard {
 //   Standard
 struct sp_cmd_rw_st : public sp_cmd_standard {
     uint8_t unit;
-    uint8_t addr_lo;
-    uint8_t addr_hi;
-    uint8_t block_0;
-    uint8_t block_1;
-    uint8_t block_2;
+    packed16 addr;
+    packed24 block;
 };
 
 //   Extended
 struct sp_cmd_rw_ex : public sp_cmd_standard {
     uint8_t unit;
-    uint8_t addr_0;
-    uint8_t addr_1;
-    uint8_t addr_2;
-    uint8_t addr_3;
-    uint8_t block_0;
-    uint8_t block_1;
-    uint8_t block_2;
-    uint8_t block_3;
+    packed32 addr;
+    packed32 block;
 };
 
 /**** EJECT / ("Control") ****/
@@ -109,27 +113,20 @@ struct sp_cmd_control_ex {
 //   Standard
 struct sp_cmd0_statcode_00 {
     uint8_t status;
-    uint8_t blk_count_0;
-    uint8_t blk_count_1;
-    uint8_t blk_count_2;
+    packed24 blk_count;
 };
 
 //   Extended
 struct sp_cmd0_statcode_00_ex {
     uint8_t status;
-    uint8_t blk_count_0;
-    uint8_t blk_count_1;
-    uint8_t blk_count_2;
-    uint8_t blk_count_3;
+    packed32 blk_count;
 };
 
 // Status 03 response
 //   Standard
 struct sp_cmd0_statcode_03 {
     uint8_t status;
-    uint8_t blk_count_0;
-    uint8_t blk_count_1;
-    uint8_t blk_count_2;
+    packed24 blk_count;
     uint8_t id_str_length;
     uint8_t id_str[16];
     uint8_t device_type;
@@ -140,10 +137,7 @@ struct sp_cmd0_statcode_03 {
 // Extended
 struct sp_cmd0_statcode_03_ex {
     uint8_t status;
-    uint8_t blk_count_0;
-    uint8_t blk_count_1;
-    uint8_t blk_count_2;
-    uint8_t blk_count_3;
+    packed32 blk_count;
     uint8_t id_str_length;
     uint8_t id_str[16];
     uint8_t device_type;
@@ -176,4 +170,5 @@ enum pdblock_cmd {
 #define PD_ERROR_IO   0x27
 #define PD_ERROR_NO_DEVICE 0x28
 #define PD_ERROR_WRITE_PROTECTED 0x2B
+#define PD_ERROR_BADBLOCK 0x2D
 #define PD_ERROR_DEVICE_OFFLINE 0x2F

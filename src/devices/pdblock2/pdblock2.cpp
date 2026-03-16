@@ -145,8 +145,8 @@ void pdblock2_execute(pdblock2_data *pdblock_d) {
         pdblock_cmd_v1 *cmdbuf = (pdblock_cmd_v1 *)pdblock_d->cmd_buffer.cmd;
         cmd = cmdbuf->cmd;
         dev = cmdbuf->dev;
-        block = cmdbuf->block_lo | (cmdbuf->block_hi << 8);
-        addr = cmdbuf->addr_lo | (cmdbuf->addr_hi << 8);        
+        block = cmdbuf->block;
+        addr = cmdbuf->addr;
         slot = (dev >> 4) & 0b0111;
         drive = (dev >> 7) & 0b1;
     } else {

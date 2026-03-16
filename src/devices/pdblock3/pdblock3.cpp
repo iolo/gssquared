@@ -96,18 +96,15 @@ public:
     * slot and drive here might be virtual as one physical slot can map drives
     * to a different virtual slot.
     */
+    // drive is unit 0-based
     void read_block(uint8_t drive, uint32_t block, uint32_t addr) {
         uint8_t block_buffer[512];
-        if (drive >= PDB3_MAX_UNITS) {
-            cmd_buffer.error = PD_ERROR_DEVICE_OFFLINE;
-            return;
-        }
+        if (!check_valid_unit(drive)) return;
+        if (!check_online(drive)) return;
+
         FILE *fp = drives[drive].file;
         media_descriptor *media = drives[drive].media;
-        if (fp == nullptr || media == nullptr) {
-            cmd_buffer.error = PD_ERROR_DEVICE_OFFLINE;
-            return;
-        }
+
         if (media->block_size == 0 || media->block_size > 512) {
             cmd_buffer.error = PD_ERROR_IO;
             return;
@@ -133,17 +130,12 @@ public:
     void write_block(uint8_t drive, uint32_t block, uint32_t addr) {
 
         uint8_t block_buffer[512];
-        if (drive >= PDB3_MAX_UNITS) {
-            cmd_buffer.error = PD_ERROR_DEVICE_OFFLINE;
-            return;
-        }
+        if (!check_valid_unit(drive)) return;
+        if (!check_online(drive)) return;
+
         FILE *fp = drives[drive].file;
         media_descriptor *media = drives[drive].media;
 
-        if (fp == nullptr || media == nullptr) {
-            cmd_buffer.error = PD_ERROR_DEVICE_OFFLINE;
-            return;
-        }
         if (media->block_size == 0 || media->block_size > 512) {
             cmd_buffer.error = PD_ERROR_IO;
             return;
@@ -167,330 +159,159 @@ public:
         drives[drive].last_block_access_time = SDL_GetTicksNS();
     }
 
-    void sp_execute(uint8_t version, pdblock_cmd_v2 *c, uint8_t cmdnum, uint32_t cb_addr) {
-        // TODO: execute the command
-        /* uint8_t version = cmd_buffer.cmd[0];
-        pdblock_cmd_v2 *c = (pdblock_cmd_v2 *)cmd_buffer.cmd;
-        uint32_t cb_addr = c->cmd_blk_hi << 8 | c->cmd_blk_lo;
-        uint8_t cmdnum = mmu->read(cb_addr); */
+    struct DriveInfo { uint8_t status; uint32_t blk_count; };
 
-        cmd_buffer.error = 0x00;
-        cmd_buffer.status1 = 0x00;
-        cmd_buffer.status2 = 0x00;
+    DriveInfo get_drive_info(uint8_t unit_index) {
+        uint32_t blkcount = drives[unit_index].media->block_count;
+        if (blkcount == 0x1'0000) blkcount = 0xFFFF; // 32 MB quirk
+        bool wp = drives[unit_index].media->write_protected;
+        uint8_t st = wp ? 0b1011'0100 : 0b1111'0000;
+        if (disk_switched[unit_index]) {
+            st |= 0b0000'0001;
+            disk_switched[unit_index] = false;
+        }
+        return {st, blkcount};
+    }
 
-        // standard command
-        // default status codes
-        uint16_t clist_addr = mmu->read(cb_addr + 1) | (mmu->read(cb_addr + 2) << 8);
+    // 0-based unit (already had 1 subtracted)
+    bool check_valid_unit(uint8_t unit) {
+        if (unit >= PDB3_MAX_UNITS) {
+            cmd_buffer.error = PD_ERROR_NO_DEVICE; // invalid unit
+            return false;
+        }
+        return true;
+    }
+    bool check_unit_nonzero(uint8_t unit) {
+        if (unit == 0) {
+            cmd_buffer.error = PD_ERROR_NO_DEVICE; // invalid unit
+            return false;
+        }
+        return true;
+    }
+
+    bool check_online(uint8_t unit) {
+        if (drives[unit].file == nullptr || drives[unit].media == nullptr) {
+            cmd_buffer.error = PD_ERROR_DEVICE_OFFLINE;
+            return false;
+        }
+        return true;
+    }
+
+    // Single implementation for both standard and extended SmartPort commands.
+    // CmdStatus / CmdRW / CmdControl select the right command-list struct;
+    // Stat00 / Stat03 select the right response struct (3-byte vs 4-byte blk_count).
+    template<typename CmdStatus, typename CmdRW, typename CmdControl,
+             typename Stat00,    typename Stat03>
+    void sp_execute_impl(uint8_t cmdnum, uint32_t clist_addr) {
         switch (cmdnum) {
             case 0x00: { // Status (pg 122)
-                    
-                    sp_cmd_status_st cmdlist;
-                    read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
-                    uint32_t slptr = cmdlist.status_p_1 << 8 | cmdlist.status_p_0;
-                    switch (cmdlist.status_code) {
-                        case 0x00: { // Status 00 Statcode 00 pg 122
-                            if (cmdlist.unit == 0) { // SmartPort Driver Status (pg 125)
-                                sp_cmd0_statcode_00_driver s;
-                                s.num_devices = PDB3_MAX_UNITS;
-                                memset(s.reserved, 0x00, sizeof(s.reserved));
-                                write_to_memory(slptr, (uint8_t *)&s, sizeof(s));
-                                cmd_buffer.status1 = sizeof(s);
-                            } else if (cmdlist.unit > PDB3_MAX_UNITS) {
-                                cmd_buffer.error = 0x21; // invalid unit
-                                break;
-                            } else if (drives[cmdlist.unit-1].media == nullptr)  { // drive offline.
-                                /* GS/OS wants the full response back, not just an error */
-                                sp_cmd0_statcode_00 s;
-                                s.status = 0b1110'0000; // device offline.
-                                s.blk_count_0 = 0x00;
-                                s.blk_count_1 = 0x00;
-                                s.blk_count_2 = 0x00;
-                                write_to_memory(slptr, (uint8_t *)&s, sizeof(s));
-                                cmd_buffer.status1 = sizeof(s);
-                            } else { // drive online
-                                sp_cmd0_statcode_00 s;
-                                uint32_t blkcount = drives[cmdlist.unit-1].media->block_count;
-                                if (blkcount == 0x1'0000) { // special case nonsense for 32MB drives
-                                    blkcount = 0xFFFF;
-                                }
-                                bool wp = drives[cmdlist.unit-1].media->write_protected;
-                                s.status = wp ? 0b1011'0100 : 0b1111'0000;
-                                if (disk_switched[cmdlist.unit-1]) {
-                                    s.status |= 0b0000'0001; // disk switched
-                                    disk_switched[cmdlist.unit-1] = false;
-                                }
-                                s.blk_count_0 = blkcount & 0xFF;
-                                s.blk_count_1 = (blkcount >> 8) & 0xFF;
-                                s.blk_count_2 = (blkcount >> 16) & 0xFF;
-                                write_to_memory(slptr, (uint8_t *)&s, sizeof(s));
-                                cmd_buffer.status1 = sizeof(s);
-                            }
-                            break; //  return device status
-                        }
-                        case 0x01: cmd_buffer.error = 0x21; break; //  return device control block
-                        case 0x02: cmd_buffer.error = 0x21; break; // return newline status
-                        case 0x03: {
-                            if (cmdlist.unit == 0 || cmdlist.unit > PDB3_MAX_UNITS) {
-                                cmd_buffer.error = 0x21; // invalid unit
-                                break;
-                            }
-                            if (drives[cmdlist.unit-1].media == nullptr)  {
-                                cmd_buffer.error = PD_ERROR_DEVICE_OFFLINE; // device offline
-                                return;
-                            }
-                            sp_cmd0_statcode_03 s;
-                            uint32_t blkcount = drives[cmdlist.unit-1].media->block_count;
-                            if (blkcount == 0x1'0000) { // special case nonsense for 32MB drives
-                                blkcount = 0xFFFF;
-                            }
-                            bool wp = drives[cmdlist.unit-1].media->write_protected;
-                            s.status = wp ? 0b1011'0100 : 0b1111'0000;
-                            if (disk_switched[cmdlist.unit-1]) {
-                                s.status |= 0b0000'0001; // disk switched
-                                disk_switched[cmdlist.unit-1] = false;
-                            }
-                            s.blk_count_0 = blkcount & 0xFF;
-                            s.blk_count_1 = (blkcount >> 8) & 0xFF;
-                            s.blk_count_2 = (blkcount >> 16) & 0xFF;
-
-                            // id string is ".pdblock3" plus a letter corresponding to the unit (a-...)
-                            s.id_str_length = 9;
-                            memcpy(s.id_str, "PDBLOCK3        ", 16);
-                            s.id_str[8] = 'A' + cmdlist.unit - 1;
-                            s.device_type = 0x02; // hard disk
-                            s.device_subtype = 0b1100'0000; // extended smartport = yes; disk-switch errors = yes
-                            s.version_1 = 0x03; // version 3
-                            s.version_0 = 0x00; // .0
-                            
+                CmdStatus cmdlist;
+                read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
+                uint32_t slptr = cmdlist.status_p;
+                switch (cmdlist.status_code) {
+                    case 0x00: { // device status (pg 122)
+                        if (cmdlist.unit == 0) { // SmartPort Driver Status (pg 125)
+                            sp_cmd0_statcode_00_driver s;
+                            s.num_devices = PDB3_MAX_UNITS;
+                            memset(s.reserved, 0x00, sizeof(s.reserved));
                             write_to_memory(slptr, (uint8_t *)&s, sizeof(s));
                             cmd_buffer.status1 = sizeof(s);
-                            break; // return device information block (DIB)
+                        } else if (cmdlist.unit > PDB3_MAX_UNITS) {
+                            cmd_buffer.error = 0x21; // invalid unit
+                            break;
+                        } else if (drives[cmdlist.unit-1].media == nullptr) { // drive offline
+                            /* GS/OS wants the full response back, not just an error */
+                            Stat00 s;
+                            s.status    = 0b1110'0000; // device offline
+                            s.blk_count = 0;
+                            write_to_memory(slptr, (uint8_t *)&s, sizeof(s));
+                            cmd_buffer.status1 = sizeof(s);
+                        } else { // drive online
+                            Stat00 s;
+                            auto [st, blkcount] = get_drive_info(cmdlist.unit - 1);
+                            s.status    = st;
+                            s.blk_count = blkcount;
+                            write_to_memory(slptr, (uint8_t *)&s, sizeof(s));
+                            cmd_buffer.status1 = sizeof(s);
                         }
-                        default: cmd_buffer.error = 0x21; break; // BADCTL Invalid Status Code
+                        break;
                     }
+                    case 0x01: cmd_buffer.error = 0x21; break; // return device control block
+                    case 0x02: cmd_buffer.error = 0x21; break; // return newline status
+                    case 0x03: { // device information block (DIB)
+                        uint8_t effunit = cmdlist.unit - 1;
+                        if (!check_valid_unit(effunit)) break;
+                        if (!check_online(effunit)) break;
+
+                        Stat03 s;
+                        auto [st, blkcount] = get_drive_info(effunit);
+                        s.status    = st;
+                        s.blk_count = blkcount;
+                        s.id_str_length = 9;
+                        memcpy(s.id_str, "PDBLOCK3        ", 16);
+                        s.id_str[8]      = 'A' + effunit;
+                        s.device_type    = 0x02;        // hard disk
+                        s.device_subtype = 0b1100'0000; // extended smartport + disk-switch errors
+                        s.version_1      = 0x03;        // version 3
+                        s.version_0      = 0x00;        // .0
+                        write_to_memory(slptr, (uint8_t *)&s, sizeof(s));
+                        cmd_buffer.status1 = sizeof(s);
+                        break;
+                    }
+                    default: cmd_buffer.error = 0x21; break; // BADCTL
                 }
                 break;
+            }
             case 0x01: { // ReadBlock
-                    sp_cmd_rw_st cmdlist;
-                    read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
-                    if (cmdlist.unit == 0 || cmdlist.unit > PDB3_MAX_UNITS) {
-                        cmd_buffer.error = 0x21;
-                        break;
-                    }
-                    uint32_t block = cmdlist.block_2 << 16 | cmdlist.block_1 << 8 | cmdlist.block_0;
-                    uint16_t addr = cmdlist.addr_hi << 8 | cmdlist.addr_lo;
-                    read_block(cmdlist.unit - 1, block, addr);
-                }
+                CmdRW cmdlist;
+                read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
+                if (!check_unit_nonzero(cmdlist.unit)) break;
+                read_block(cmdlist.unit - 1, cmdlist.block, cmdlist.addr);
                 break;
-            case 0x02: { // WriteBlock 
-                    sp_cmd_rw_st cmdlist;
-                    read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
-                    if (cmdlist.unit == 0 || cmdlist.unit > PDB3_MAX_UNITS) {
-                        cmd_buffer.error = 0x21;
-                        break;
-                    }
-                    uint32_t block = cmdlist.block_2 << 16 | cmdlist.block_1 << 8 | cmdlist.block_0;
-                    uint16_t addr = cmdlist.addr_hi << 8 | cmdlist.addr_lo;
-                    write_block(cmdlist.unit - 1, block, addr);
-                }
+            }
+            case 0x02: { // WriteBlock
+                CmdRW cmdlist;
+                read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
+                if (!check_unit_nonzero(cmdlist.unit)) break;
+                write_block(cmdlist.unit - 1, cmdlist.block, cmdlist.addr);
                 break;
-            case 0x03:  // Format 
-                // TODO: format the drive. well basically just return "success".
+            }
+            case 0x03: // Format
                 assert(false); // not implemented
                 break;
-            case 0x04: // Control
-                { // Eject
-                // Eject the media (originally was device-specific control)
-                /* SmartPort TN #2: CONTROL Codes
-                    Before May 1988, control code $04 was defined as device-specific. It is now
-                    defined as EJECT, and all SmartPort devices which support removable media must
-                    support this call. If a device does not support removable media, it should
-                    simply return from this call without an error. */
-                //assert(false); // not implemented GS/OS going to P8 triggers this.
-                sp_cmd_control_st cmdlist;
+            case 0x04: { // Control / Eject
+                /* SmartPort TN #2: Before May 1988, control code $04 was device-specific.
+                   It is now defined as EJECT. Devices without removable media return success. */
+                CmdControl cmdlist;
                 read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
-                if (cmdlist.unit == 0 || cmdlist.unit > PDB3_MAX_UNITS) {
-                    cmd_buffer.error = 0x21;
-                    break;
-                }
+                if (!check_unit_nonzero(cmdlist.unit)) break;
+                if (!check_valid_unit(cmdlist.unit)) break;
                 if (cmdlist.code == 0x04) {
                     storage_key_t key;
                     key.drive = cmdlist.unit - 1;
-                    key.slot = _slot;
+                    key.slot  = _slot;
                     unmount(key);
                 }
                 break;
             }
-            default: 
+            default:
                 cmd_buffer.error = 0x21;
                 break;
-            
         }
+    }
 
+    void sp_execute(uint8_t version, pdblock_cmd_v2 *c, uint8_t cmdnum, uint32_t cb_addr) {
+        cmd_buffer.error = cmd_buffer.status1 = cmd_buffer.status2 = 0x00;
+        uint32_t clist_addr = mmu->read(cb_addr + 1) | (mmu->read(cb_addr + 2) << 8);
+        sp_execute_impl<sp_cmd_status_st, sp_cmd_rw_st, sp_cmd_control_st,
+                        sp_cmd0_statcode_00, sp_cmd0_statcode_03>(cmdnum, clist_addr);
     }
 
     void sp_execute_extended(uint8_t version, pdblock_cmd_v2 *c, uint8_t cmdnum, uint32_t cb_addr) {
-        // TODO: execute the command
-       /*  uint8_t version = cmd_buffer.cmd[0];
-        pdblock_cmd_v2 *c = (pdblock_cmd_v2 *)cmd_buffer.cmd;
-        uint32_t cb_addr = c->cmd_blk_hi << 8 | c->cmd_blk_lo;
-        uint8_t cmdnum = mmu->read(cb_addr);
- */
-        cmd_buffer.error = 0x00;
-        cmd_buffer.status1 = 0x00;
-        cmd_buffer.status2 = 0x00;
-
-        // standard command
-        // default status codes
-        uint16_t clist_addr = mmu->read(cb_addr + 1) | (mmu->read(cb_addr + 2) << 8) | (mmu->read(cb_addr + 3) << 16);
-        switch (cmdnum & 0x3F) {
-            case 0x00: { // Status (pg 122)
-                    
-                    sp_cmd_status_ex cmdlist;
-                    read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
-                    uint32_t slptr = cmdlist.status_p_1 << 8 | cmdlist.status_p_0;
-                    switch (cmdlist.status_code) {
-                        case 0x00: { // Status 00 Statcode 00 pg 122
-                            if (cmdlist.unit == 0) { // SmartPort Driver Status (pg 125)
-                                sp_cmd0_statcode_00_driver s;
-                                s.num_devices = PDB3_MAX_UNITS;
-                                memset(s.reserved, 0x00, sizeof(s.reserved));
-                                write_to_memory(slptr, (uint8_t *)&s, sizeof(s));
-                                cmd_buffer.status1 = sizeof(s);
-                            } else if (cmdlist.unit > PDB3_MAX_UNITS) {
-                                cmd_buffer.error = 0x21; // invalid unit
-                                break;
-                            } else if (drives[cmdlist.unit-1].media == nullptr)  { // drive offline.
-                                /* GS/OS wants the full response back, not just an error */
-                                sp_cmd0_statcode_00_ex s;
-                                s.status = 0b1110'0000; // device offline.
-                                s.blk_count_0 = 0x00;
-                                s.blk_count_1 = 0x00;
-                                s.blk_count_2 = 0x00;
-                                s.blk_count_3 = 0x00;
-                                write_to_memory(slptr, (uint8_t *)&s, sizeof(s));
-                                cmd_buffer.status1 = sizeof(s);
-                            } else { // drive online
-                                sp_cmd0_statcode_00_ex s;
-                                uint32_t blkcount = drives[cmdlist.unit-1].media->block_count;
-                                if (blkcount == 0x1'0000) { // special case nonsense for 32MB drives
-                                    blkcount = 0xFFFF;
-                                }
-                                bool wp = drives[cmdlist.unit-1].media->write_protected;
-                                s.status = wp ? 0b1011'0100 : 0b1111'0000;
-                                if (disk_switched[cmdlist.unit-1]) {
-                                    s.status |= 0b0000'0001; // disk switched
-                                    disk_switched[cmdlist.unit-1] = false;
-                                }
-                                s.blk_count_0 = blkcount & 0xFF;
-                                s.blk_count_1 = (blkcount >> 8) & 0xFF;
-                                s.blk_count_2 = (blkcount >> 16) & 0xFF;
-                                s.blk_count_3 = (blkcount >> 24) & 0xFF;
-                                write_to_memory(slptr, (uint8_t *)&s, sizeof(s));
-                                cmd_buffer.status1 = sizeof(s);
-                            }
-                            break; //  return device status
-                        }
-                        case 0x01: cmd_buffer.error = 0x21; break; //  return device control block
-                        case 0x02: cmd_buffer.error = 0x21; break; // return newline status
-                        case 0x03: {
-                            if (cmdlist.unit == 0 || cmdlist.unit > PDB3_MAX_UNITS) {
-                                cmd_buffer.error = 0x21; // invalid unit
-                                break;
-                            }
-                            if (drives[cmdlist.unit-1].media == nullptr)  {
-                                cmd_buffer.error = PD_ERROR_DEVICE_OFFLINE; // device offline
-                                return;
-                            }
-                            sp_cmd0_statcode_03_ex s;
-                            uint32_t blkcount = drives[cmdlist.unit-1].media->block_count;
-                            if (blkcount == 0x1'0000) { // special case nonsense for 32MB drives
-                                blkcount = 0xFFFF;
-                            }
-                            bool wp = drives[cmdlist.unit-1].media->write_protected;
-                            s.status = wp ? 0b1011'0100 : 0b1111'0000;
-                            if (disk_switched[cmdlist.unit-1]) {
-                                s.status |= 0b0000'0001; // disk switched
-                                disk_switched[cmdlist.unit-1] = false;
-                            }
-                            s.blk_count_0 = blkcount & 0xFF;
-                            s.blk_count_1 = (blkcount >> 8) & 0xFF;
-                            s.blk_count_2 = (blkcount >> 16) & 0xFF;
-                            s.blk_count_3 = (blkcount >> 24) & 0xFF;
-
-                            // id string is ".pdblock3" plus a letter corresponding to the unit (a-...)
-                            s.id_str_length = 9;
-                            memcpy(s.id_str, "PDBLOCK3        ", 16);
-                            s.id_str[8] = 'A' + cmdlist.unit - 1;
-                            s.device_type = 0x02; // hard disk
-                            s.device_subtype = 0b1100'0000; // "hard disk supporting extended calls" = yes; disk-switch errors = yes
-                            s.version_1 = 0x03; // version 3
-                            s.version_0 = 0x00; // .0
-                            
-                            write_to_memory(slptr, (uint8_t *)&s, sizeof(s));
-                            cmd_buffer.status1 = sizeof(s);
-                            break; // return device information block (DIB)
-                        }
-                        default: cmd_buffer.error = 0x21; break; // BADCTL Invalid Status Code
-                    }
-                }
-                break;
-            case 0x01: { // ReadBlock
-                    sp_cmd_rw_ex cmdlist;
-                    read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
-                    if (cmdlist.unit == 0 || cmdlist.unit > PDB3_MAX_UNITS) {
-                        cmd_buffer.error = 0x21;
-                        break;
-                    }
-                    uint32_t block = /* cmdlist.block_3 << 24 | */ cmdlist.block_2 << 16 | cmdlist.block_1 << 8 | cmdlist.block_0;
-                    uint32_t addr = cmdlist.addr_2 << 16 | cmdlist.addr_1 << 8 | cmdlist.addr_0;
-                    read_block(cmdlist.unit - 1, block, addr);
-                }
-                break;
-            case 0x02: { // WriteBlock 
-                    sp_cmd_rw_ex cmdlist;
-                    read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
-                    if (cmdlist.unit == 0 || cmdlist.unit > PDB3_MAX_UNITS) {
-                        cmd_buffer.error = 0x21;
-                        break;
-                    }
-                    uint32_t block = /* cmdlist.block_3 << 24 | */ cmdlist.block_2 << 16 | cmdlist.block_1 << 8 | cmdlist.block_0;
-                    uint32_t addr = cmdlist.addr_2 << 16 | cmdlist.addr_1 << 8 | cmdlist.addr_0;
-                    write_block(cmdlist.unit - 1, block, addr);
-                }
-                break;
-            case 0x03:  // Format 
-                // TODO: format the drive. well basically just return "success".
-                assert(false); // not implemented
-                break;
-            case 0x04: { // Control
-                // $04: eject the media
-                /* SmartPort TN #2: CONTROL Codes
-                    Before May 1988, control code $04 was defined as device-specific. It is now
-                    defined as EJECT, and all SmartPort devices which support removable media must
-                    support this call. If a device does not support removable media, it should
-                    simply return from this call without an error. */
-                //assert(false); // not implemented GS/OS going to P8 triggers this.
-                sp_cmd_control_ex cmdlist;
-                read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
-                if (cmdlist.unit == 0 || cmdlist.unit > PDB3_MAX_UNITS) {
-                    cmd_buffer.error = 0x21;
-                    break;
-                }
-                if (cmdlist.code == 0x04) {
-                    storage_key_t key;
-                    key.drive = cmdlist.unit - 1;
-                    key.slot = _slot;
-                    unmount(key);    
-                }
-                break;
-            }
-            default: 
-                cmd_buffer.error = 0x21;
-                break;
-            
-        }
-
+        cmd_buffer.error = cmd_buffer.status1 = cmd_buffer.status2 = 0x00;
+        uint32_t clist_addr = mmu->read(cb_addr + 1) | (mmu->read(cb_addr + 2) << 8) | (mmu->read(cb_addr + 3) << 16);
+        sp_execute_impl<sp_cmd_status_ex, sp_cmd_rw_ex, sp_cmd_control_ex,
+                        sp_cmd0_statcode_00_ex, sp_cmd0_statcode_03_ex>(cmdnum & 0x3F, clist_addr);
     }
 
     /* Version 1 command - ProDOS Block Device */
@@ -514,8 +335,8 @@ public:
         pdblock_cmd_v1 *cmdbuf = (pdblock_cmd_v1 *)cmd_buffer.cmd;
         cmd = cmdbuf->cmd;
         dev = cmdbuf->dev;
-        block = cmdbuf->block_lo | (cmdbuf->block_hi << 8);
-        addr = cmdbuf->addr_lo | (cmdbuf->addr_hi << 8);        
+        block = cmdbuf->block;
+        addr = cmdbuf->addr;
         slot = (dev >> 4) & 0b0111;
         drive = (dev >> 7) & 0b1;
     
@@ -533,6 +354,9 @@ public:
             cmd_buffer.error = PD_ERROR_DEVICE_OFFLINE;
             return;
         }
+        cmd_buffer.error = 0x00;
+        cmd_buffer.status1 = 0x00;
+        cmd_buffer.status2 = 0x00;
         if (cmd == 0x00) {
             media_descriptor *media = drives[drive].media;
             if (media == nullptr) {
@@ -540,19 +364,12 @@ public:
                 return;
             }
             // TODO: check and handle disk switched? 
-            cmd_buffer.error = 0x00;
             cmd_buffer.status1 = media->block_count & 0xFF;
             cmd_buffer.status2 = (media->block_count >> 8) & 0xFF;
         } else if (cmd == 0x01) {
             read_block(drive, block, addr);
-            cmd_buffer.error = 0x00;
-            cmd_buffer.status1 = 0x00;
-            cmd_buffer.status2 = 0x00;
         } else if (cmd == 0x02) {
             write_block(drive, block, addr);
-            cmd_buffer.error = 0x00;
-            cmd_buffer.status1 = 0x00;
-            cmd_buffer.status2 = 0x00;
         } else if (cmd == 0x03) { // not implemented
             cmd_buffer.error = PD_ERROR_NO_DEVICE;
         }
@@ -583,7 +400,7 @@ public:
             fclose(drives[key.drive].file);
             drives[key.drive].file = nullptr;
             drives[key.drive].media = nullptr;
-            //disk_switched[key.drive] = false; // no change here..
+            disk_switched[key.drive] = true;
         }
         return true;
     }
@@ -638,14 +455,11 @@ public:
         if (version == 0x01) {
             pd_execute();
         } else if (version == 0x02) {
-            uint8_t version = cmd_buffer.cmd[0];
             pdblock_cmd_v2 *c = (pdblock_cmd_v2 *)cmd_buffer.cmd;
-            uint32_t cb_addr = c->cmd_blk_hi << 8 | c->cmd_blk_lo;
+            uint32_t cb_addr = c->cmd_blk;
             uint8_t cmdnum = mmu->read(cb_addr);
             if (cmdnum & 0x40) sp_execute_extended(version, c, cmdnum, cb_addr);
             else sp_execute(version, c, cmdnum, cb_addr);
-        
-            //sp_execute();
         } else {
             // TODO: return some kind of error
             if (DEBUG(DEBUG_PD_BLOCK)) std::cout << "pdblock3_execute: Version not supported" << std::endl;

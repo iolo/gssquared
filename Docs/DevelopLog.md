@@ -10809,3 +10809,25 @@ That seems to be working! I can switch disks now in WITA2GS and hit enter and it
 This was discussed in IIgs Technote #25, Firmware Reference Updates.
 
 Video in LS with debug on goes haywire? not reproducing earlier weirdness.
+maybe have a hook on it - not reproducing problems in 40col mode GS. however, in 80 col mode, entering LS then coming back out, the "cycle index" is off, 12989 etc. 
+That shouldn't be any different, unless there is something in the VSG logic?
+or, maybe it's somewhat random when we come back in from l.s.? yes, and sometimes coming back we get put back to 7 cycles?
+Odd. Well I still need to work on this for the debugger. the basic idea is this: 
+1. when debugger window is opened, we're running in trace full speed.
+1. if we enter s/s, that will be at the end of a frame, so c is 7
+1. but if we stop due to a bp, c could be anything.
+1. IMPORTANT: do not disturb the contents of ScanBuffer. When we resume, we want to pick right back up.
+1. ALSO: do not disturb the frame cycle counters. 
+
+we will want a flag here, to switch between: a) draw what video data we have in the ScanBuffer right now (without deleting it!), and b) draw the full frame.
+
+[ ] find all instances of 14318180 in the code and tie it to clock or something similar  
+
+SmartPort TNs have needed info!
+https://mirrors.apple2.org.za/Apple%20II%20Documentation%20Project/Companies/Apple/Documentation/Apple%20II%20Technical%20Notes%201989-09.pdf
+
+first, they did standardize an eject command, command code 4?
+i also saw something in there that indicates that disk switched comes on both for an insert, and for an eject
+GS/OS is not calling eject when I eject a disk.. there may be some status or capability flag we're not setting right, though, $C0 is supposed to be "removable hard disk supporting extended calls and disk-switch errors"
+
+the smartport code is very repetitious. Let's examine it for code reuse.
