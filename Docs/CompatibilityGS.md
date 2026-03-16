@@ -155,6 +155,8 @@ This now boots to the installer! (there may be that "doesn't boot on a first loa
 so, this  but then crashes after trying to calculate a slot offset from $2B. $2B in some docs says "boot slot * 16". we lsr that four times. ok fine.
 Except when this code runs $2B just contains 7. 7 is right slot but in wrong place. 
 Well, funnily enough, this is a 143K disk, not an 800K disk. So I bet its bootloader is just doing the wrong thing because it's expecting a 5.25.
+Boots most of the way on GS but then fails in a tight loop reading C0EC (at D27F, prodos?)
+Interestingly, same media boots and plays fine on //e.
 
 ## Donkey Kong
 
@@ -214,7 +216,7 @@ OK fine, I implemented fill, only took 20 minutes, but this still crashes.
 
 ### No Hard Feelings
 
-Also desperately wants fill mode. Also implemented.
+Also desperately wants fill mode. Also implemented. What a great demo.
 
 ### Plasma
 
@@ -268,4 +270,9 @@ This crashes on startup. Why?
 POLL FDB DEVICE - unimplemented
 interesting!
 WORKING!!! Implemented improvements to ADB emulation to support what w3d wanted.
-PLAYS LIKE A CHAMP.
+
+**PLAYS LIKE A CHAMP**
+
+### Zany Golf
+
+Works right up until you are actually playing a level, then the screen is black where level should be. Say wha.

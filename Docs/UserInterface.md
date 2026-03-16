@@ -114,7 +114,6 @@ Slow down the OSD open/close a bit, to make it whooshier.
     * 7.1
     * 14.3
     * Unlimited
-  * Sleep/Busy Wait
   * Game Controller
     * Joystick - Gamepad
     * Joystick - Mouse
@@ -122,6 +121,7 @@ Slow down the OSD open/close a bit, to make it whooshier.
   * Modifier Keys
     * OA/Cmd = ALT; CA/Opt = Win
     * OA/Cmd = WIN; CA/Opt = ALT
+  * Sleep/Busy Wait
 * Display
   * Monitor
     * Composite

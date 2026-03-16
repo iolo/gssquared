@@ -58,9 +58,19 @@
 Primary Focus: UI
 
 [ ] put common controls in hover-over on main page - reset, restart, power-off, open debugger  
-[ ] Refactor MB to use new synth, and pass Shuttleworth tests  
 [ ] Can make custom hw config. (Click "+ Custom").
 [ ] put "modified" and "write protected" indicator of some kind on the disk icons.  
 [ ] when we go to power off (from inside OSD), check to see if disks need writing, and throw up appropriate dialogs.  
 [ ] Add buttons for step/run in the debugger
 [ ] IWM 3.5
+[ ] Refactor MB to use new synth, and pass Shuttleworth tests  
+
+## Release 0.9
+
+[ ] Fix all known / pending bugs  
+[ ] Integrate with Cyrene Debugger  
+
+## Release 1.0
+
+[ ] CRT Effects
+[ ] Host FST

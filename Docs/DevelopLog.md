@@ -10327,8 +10327,8 @@ Run "Emergency" which drops to text mode to speak text using SAM. When it return
 
 A2Desktop 1.6 runs a lot better, I was getting crashes trying to load text editor and such, no such issues now.
 
-[ ] If mouse was captured, and we open OSD, when OSD closed, automatically recapture mouse, so we don't require yet another action when mounting disk. This will be less irksome with drag'n'drop, but still.  
-[ ] Consider having mouse capture require key or click a special button, not just click anywhere in the window  
+[x] If mouse was captured, and we open OSD, when OSD closed, automatically recapture mouse, so we don't require yet another action when mounting disk. This will be less irksome with drag'n'drop, but still.  
+[x] Consider having mouse capture require key or click a special button, not just click anywhere in the window  
 
 I am thinking storage keys should be a nice struct. It's 64 bits right, so a packed struct of 4 16-bit values would work nicely. And make using keys much simpler throughout the code.
 
@@ -10345,7 +10345,7 @@ It's doing some pointer artithmetic, this looks high level languagey. it's just 
 
 I am refactoring the Screen Cap (PrntScrn) function, to read the image out of the last screen texture before rendering. This works great on the GS, but, the other systems use a texture that does not have the right mode/flag set. You need a texture to be a render_target texture. So probably need to change the IIe modes to render first to stage2 just like the GS does. Right now screen cap on II/IIe will return a black screen, which is better than crashing like it was before. I went ahead and added the extra copy in apple2_cycle, it adds 10uS to the render time but I get copy and paste. I suppose I could experiment with making screenTexture also a render_target texture. not sure what impact that has. Can it be that and a streaming texture at the same time? Probably not. Ah, so once I have the Surface, I could ask SDL to scale it to the correct aspect ratio for me. I wonder how long that would take.. in main cpu memory, during frame time, probably not that bad. That's worth a shot.
 
-[ ] experiement with having SDL scale the surface for us before we hand off. Alternatively, we can just scanline double like we used to.  
+[x] experiement with having SDL scale the surface for us before we hand off. Alternatively, we can just scanline double like we used to. (I do it manually, it's fine)
 
 ## Feb 26, 2026
 
@@ -10758,17 +10758,16 @@ https://bzotto.medium.com/apple-beige-revisited-b08702b98175
 I am thinking of a different color for SelectSystem than motherboard green, which is a little hard to read on the IIgs badge. 
 
 Outstanding bugs:
-textfunk timing wrong
-ensoniq slow interrupts
-One-second interrupts need to be based on the 14.318 timer, synced to the realtime clock.
+[x] One-second interrupts need to be based on the 14.318 timer, synced to the realtime clock.
 
 Features pending:
-3.5" SmartPort Floppy
-Multi-volume Hard Drive
-ImageWriter printer
+[ ] 3.5" SmartPort Floppy
+[ ] .woz file support
+[ ] Multi-volume Hard Drive
+[ ] ImageWriter printer
 
 User Interface stuff:
-lots of buttons
+[ ] lots of buttons
 
 ## Mar 14, 2026
 
@@ -10783,4 +10782,30 @@ it's sort of right, that isn't really part of Computer.
 when holding a menu down on the mac, the Idle percent goes nuts, pressing causes sometimes 20 slips, and releasing causes another couple, and this interferes with the audio stuff. So something isn't quite right with the timer. When we're running on the timer we should not -also- sleep, right? So we're doing too many frames.. ok I have a thing in now that purports to not sleep during menu time. The idle calculation is bonkers but that might be because we pull the current time right after sleep for -why?-.
 
 I now append * to the menu disk menu if a disk image is modified. however, I'm not sure what to put on the drive itself.
-I added a write protect icon, which is a lock, which makes some sense, however, it's a little big at 30x30. I guess I'll do 25x25.
+I added a write protect icon, which is a lock, which makes some sense, however, it's a little big at 30x30. I guess I'll do 25x25. Maybe I should even do 20x20! ha.
+
+## Mar 15, 2026
+
+The disk drives are looking a little busy, what with the Slot number, track number, filename, and lock on them. Compress the info somewhat. looks better. However I am not liking the default debug font there any more. Think about getting some other font. (The font used in Crossrunner is cool, and sort of in era).
+
+thinking about clock speeds again, and the lack of working ludicrous speed in GS mode. I still think the best approach is to have 28MHz, 56MHz, etc up to maybe 112MHz? Then we use the existing VideoScanner for everything. Honestly, do the same for the Apple II modes. This way everything is clocked instead of "free run"; it's still ludicrously fast; but all the devices/timers/etc will work as expected. Implementing this is simple - incr_cycles keeps a new cpu cycle accumulator; 28 is 2x14, so for each -two- cpu ticks we then tick 14m that many. Hmm, now that could live in the cpu's "incr_cycles"? That's gonna get inlined heavily and will likely be super fast, avoiding a subroutine call and all the associated video cycle overhead on most incr_cycle's. I guess the cpu could have a generic "clock multiplier" setting; that is sort of what we're doing, X cpu cycles per "real cycle". need to think about how that interacts with slow mode, etc.. maybe we do need to do it inside nclock? At these speeds, the idea of syncing down to 1MHz and of simulating the ram refresh delays, becomes a little ludicrous (we lose so much speed). Perhaps this goes into the Apple IIx, which will not be compatible with these cycle-accurate concerns but start to refactor the GS architecture around performance?
+
+pdblock3 disk-switched. it looks like statcode=$00, the device status byte bit 0 is "1 = disk switched (block devices only)". SO.
+the first time that status is read, we return that bit, but clear that status.
+so the states are:
+state=0: media unmounted
+  mount
+    set disk switch
+    set state 1
+  status
+    return no media
+state 1: media mounted
+  unmount set state 0
+  status
+    if disk switch, return disk switched
+    disk switched=false
+this feels like just a disk switched flag that is set when we go from no media to media.
+That seems to be working! I can switch disks now in WITA2GS and hit enter and it picks up the new media.
+This was discussed in IIgs Technote #25, Firmware Reference Updates.
+
+Video in LS with debug on goes haywire? not reproducing earlier weirdness.
