@@ -143,7 +143,7 @@ protected:
     uint16_t h_counter = 0;
 
 public:
-uint32_t  hcount;       // use separate hcount and vcount in order
+//uint32_t  hcount;       // use separate hcount and vcount in order
 //uint32_t  vcount;       // to simplify IIgs scanline interrupts
     
     VideoScannerII(MMU_II *mmu);
@@ -153,9 +153,10 @@ uint32_t  hcount;       // use separate hcount and vcount in order
     virtual void initialize() { init_video_addresses(); }
     virtual void allocate();
 
-    virtual void reset() { frame_scan->clear(); hcount = 0; scan_index = 7 /* (65*243) */; };
+    virtual void reset() { frame_scan->clear(); /* hcount = 0; */ scan_index = 7 /* (65*243) */; };
 
     virtual void video_cycle();
+    uint32_t get_scan_cycle() { return scan_index; }
     virtual void init_video_addresses();
 
     inline bool is_hbl()     { return (scan_index % 65) < 25;   }

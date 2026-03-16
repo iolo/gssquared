@@ -758,7 +758,12 @@ void OSD::render() {
             SDL_RenderDebugText(renderer, 20, window_height - 30, hud_str);
 
             if (clock->get_video_scanner()) {
-                snprintf(hud_str, sizeof(hud_str), "H: %3d V: %3d c: %6d", clock->get_video_scanner()->hcount, clock->get_video_scanner()->get_vcount(), clock->get_video_scanner()->get_frame_scan()->get_count());
+                VideoScannerII *vs = clock->get_video_scanner();
+                snprintf(hud_str, sizeof(hud_str), "H: %3d V: %3d c: %6d (SB: %d)", 
+                    vs->get_hcount(), 
+                    vs->get_vcount(), 
+                    vs->get_scan_cycle(),
+                    vs->get_frame_scan()->get_count());
                 SDL_RenderDebugText(renderer, 20, window_height - 50, hud_str);
             }            
         }
