@@ -141,10 +141,11 @@ void update_display_videx(cpu_state *cpu, videx_data * videx_d) {
         SDL_UnlockTexture(videx_d->videx_texture);
     }
     vs->force_full_frame_redraw = false;
+    static SDL_FRect dstrect = { 0.0f, 0.0f, (float)VIDEX_SCREEN_WIDTH, (float)VIDEX_SCREEN_HEIGHT };
 
     SDL_SetTextureBlendMode(videx_d->videx_texture, SDL_BLENDMODE_ADD); // double-draw this to increase brightness.
-    vs->render_frame(videx_d->videx_texture, nullptr, &ds->ii_borders[B_CEN][B_CEN].dst);
-    vs->render_frame(videx_d->videx_texture, nullptr, &ds->ii_borders[B_CEN][B_CEN].dst);
+    vs->render_frame(videx_d->videx_texture, &dstrect, &ds->ii_borders[B_CEN][B_CEN].dst);
+    vs->render_frame(videx_d->videx_texture, &dstrect, &ds->ii_borders[B_CEN][B_CEN].dst);
 }
 
 void videx_memory_write2(void *context, uint32_t address, uint8_t value) {
