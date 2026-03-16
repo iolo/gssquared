@@ -257,7 +257,7 @@ public:
                             s.id_str_length = 9;
                             memcpy(s.id_str, "PDBLOCK3        ", 16);
                             s.id_str[8] = 'A' + cmdlist.unit - 1;
-                            s.device_type = 0x02; // nonremovable hard disk
+                            s.device_type = 0x02; // hard disk
                             s.device_subtype = 0b1100'0000; // extended smartport = yes; disk-switch errors = yes
                             s.version_1 = 0x03; // version 3
                             s.version_0 = 0x00; // .0
@@ -299,9 +299,28 @@ public:
                 assert(false); // not implemented
                 break;
             case 0x04: // Control
-                // TODO: control the drive. well basically just return "success".
+                { // Eject
+                // Eject the media (originally was device-specific control)
+                /* SmartPort TN #2: CONTROL Codes
+                    Before May 1988, control code $04 was defined as device-specific. It is now
+                    defined as EJECT, and all SmartPort devices which support removable media must
+                    support this call. If a device does not support removable media, it should
+                    simply return from this call without an error. */
                 //assert(false); // not implemented GS/OS going to P8 triggers this.
+                sp_cmd_control_st cmdlist;
+                read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
+                if (cmdlist.unit == 0 || cmdlist.unit > PDB3_MAX_UNITS) {
+                    cmd_buffer.error = 0x21;
+                    break;
+                }
+                if (cmdlist.code == 0x04) {
+                    storage_key_t key;
+                    key.drive = cmdlist.unit - 1;
+                    key.slot = _slot;
+                    unmount(key);
+                }
                 break;
+            }
             default: 
                 cmd_buffer.error = 0x21;
                 break;
@@ -403,7 +422,7 @@ public:
                             s.id_str_length = 9;
                             memcpy(s.id_str, "PDBLOCK3        ", 16);
                             s.id_str[8] = 'A' + cmdlist.unit - 1;
-                            s.device_type = 0x02; // nonremovable hard disk
+                            s.device_type = 0x02; // hard disk
                             s.device_subtype = 0b1100'0000; // "hard disk supporting extended calls" = yes; disk-switch errors = yes
                             s.version_1 = 0x03; // version 3
                             s.version_0 = 0x00; // .0
@@ -444,10 +463,28 @@ public:
                 // TODO: format the drive. well basically just return "success".
                 assert(false); // not implemented
                 break;
-            case 0x04: // Control
-                // TODO: control the drive. well basically just return "success".
+            case 0x04: { // Control
+                // $04: eject the media
+                /* SmartPort TN #2: CONTROL Codes
+                    Before May 1988, control code $04 was defined as device-specific. It is now
+                    defined as EJECT, and all SmartPort devices which support removable media must
+                    support this call. If a device does not support removable media, it should
+                    simply return from this call without an error. */
                 //assert(false); // not implemented GS/OS going to P8 triggers this.
+                sp_cmd_control_ex cmdlist;
+                read_from_memory(clist_addr, (uint8_t *)&cmdlist, sizeof(cmdlist));
+                if (cmdlist.unit == 0 || cmdlist.unit > PDB3_MAX_UNITS) {
+                    cmd_buffer.error = 0x21;
+                    break;
+                }
+                if (cmdlist.code == 0x04) {
+                    storage_key_t key;
+                    key.drive = cmdlist.unit - 1;
+                    key.slot = _slot;
+                    unmount(key);    
+                }
                 break;
+            }
             default: 
                 cmd_buffer.error = 0x21;
                 break;

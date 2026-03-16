@@ -87,6 +87,24 @@ struct sp_cmd_rw_ex : public sp_cmd_standard {
     uint8_t block_3;
 };
 
+/**** EJECT / ("Control") ****/
+//   Standard
+struct sp_cmd_control_st : public sp_cmd_standard {
+    uint8_t unit;
+    uint8_t cl_addr_0;
+    uint8_t cl_addr_1;
+    uint8_t code;
+};
+
+struct sp_cmd_control_ex {
+    uint8_t unit;
+    uint8_t cl_addr_0;
+    uint8_t cl_addr_1;
+    uint8_t cl_addr_2;
+    uint8_t cl_addr_3;
+    uint8_t code;
+};
+
 // Status 00 response
 //   Standard
 struct sp_cmd0_statcode_00 {
