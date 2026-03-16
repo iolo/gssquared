@@ -1211,7 +1211,7 @@ void rtc_pram_1sec_interrupt(uint64_t instanceID, void *context) {
     ds->f_onesec_asserted = true;
     update_vgc_interrupt(ds, true);
     // reschedule ourselves for 1 second.
-    uint64_t trigger_cycle = ds->clock->get_c14m() + 14318180;
+    uint64_t trigger_cycle = ds->clock->get_c14m() + ds->clock->get_c14m_per_second() /* 14318180 */;
     ds->computer->event_timer->scheduleEvent(trigger_cycle, rtc_pram_1sec_interrupt, instanceID, ds);
 }
 
@@ -1524,7 +1524,7 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
         SDL_GetCurrentTime(&time); // get current time in nanoseconds.
         uint64_t remain = 1000000000 - (time % 1000000000);
         // how many nanoseconds is a 14M
-        uint64_t ns_14m = 1000000000 / 14318180;
+        uint64_t ns_14m = 1000000000 / ds->clock->get_c14m_per_second() /* 14318180 */;
         // calculate number of 14M ticks (14318180hz) are in remain nanoseconds
         uint64_t ticks_14m = remain / ns_14m;
         // set the 14M timer to the number of ticks
