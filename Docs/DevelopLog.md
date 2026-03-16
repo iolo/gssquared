@@ -10812,6 +10812,7 @@ Video in LS with debug on goes haywire? not reproducing earlier weirdness.
 maybe have a hook on it - not reproducing problems in 40col mode GS. however, in 80 col mode, entering LS then coming back out, the "cycle index" is off, 12989 etc. 
 That shouldn't be any different, unless there is something in the VSG logic?
 or, maybe it's somewhat random when we come back in from l.s.? yes, and sometimes coming back we get put back to 7 cycles?
+
 Odd. Well I still need to work on this for the debugger. the basic idea is this: 
 1. when debugger window is opened, we're running in trace full speed.
 1. if we enter s/s, that will be at the end of a frame, so c is 7
@@ -10819,9 +10820,22 @@ Odd. Well I still need to work on this for the debugger. the basic idea is this:
 1. IMPORTANT: do not disturb the contents of ScanBuffer. When we resume, we want to pick right back up.
 1. ALSO: do not disturb the frame cycle counters. 
 
+So I changed a few things; now display the cycle number, and how many elements in ScanBuffer. and I'm not getting weirdness - on //e! lemme try gs. It does happen on the GS.
+So when we want to leave ludicrous speed, we need to run cpu until we've synchronized the normal end of frame stuff?
+I wonder if LS should:
+```
+  while (...)
+    while (cycles < frame_end)) {
+      if we exceeded 16.67ms
+        do frame stuff
+    }
+  }
+```
+then we always have the right number of cycles coming out of stuff. 
+
 we will want a flag here, to switch between: a) draw what video data we have in the ScanBuffer right now (without deleting it!), and b) draw the full frame.
 
-[ ] find all instances of 14318180 in the code and tie it to clock or something similar  
+[ ] find all instances of 14318180 in the code and tie it to mclock or a global const  
 
 SmartPort TNs have needed info!
 https://mirrors.apple2.org.za/Apple%20II%20Documentation%20Project/Companies/Apple/Documentation/Apple%20II%20Technical%20Notes%201989-09.pdf
@@ -10830,4 +10844,6 @@ first, they did standardize an eject command, command code 4?
 i also saw something in there that indicates that disk switched comes on both for an insert, and for an eject
 GS/OS is not calling eject when I eject a disk.. there may be some status or capability flag we're not setting right, though, $C0 is supposed to be "removable hard disk supporting extended calls and disk-switch errors"
 
-the smartport code is very repetitious. Let's examine it for code reuse.
+the smartport code is very repetitious. Let's examine it for code reuse. Big win here!
+
+[ ] there's a bug in 5.25 floppy code, sometimes when I insert a disk when the drive is spinning (but empty) it reads partially but eventually craps out.
