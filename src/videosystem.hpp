@@ -78,9 +78,9 @@ struct video_system_t {
     SDL_FRect last_srcrect = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     RGBA_t mono_color_table[DM_NUM_MONO_MODES] = {
-        {.a=0xFF, .b=0xFF, .g=0xFF, .r=0xFF }, // white
-        {.a=0xFF, .b=0x4A, .g=0xFF, .r=0x00 }, // green (was 55) chosen from measuring @ 549nm and https://academo.org/demos/wavelength-to-colour-relationship/
-        {.a=0xFF, .b=0x00, .g=0xBF, .r=0xFF }  // amber
+        RGBA_t::make(0xFF, 0xFF, 0xFF), // white
+        RGBA_t::make(0x00, 0xFF, 0x4A), // green (was 55) chosen from measuring @ 549nm
+        RGBA_t::make(0xFF, 0xBF, 0x00)  // amber
     };
    /*  uint32_t mono_color_table_u[DM_NUM_MONO_MODES] = { // NO LONGER USED
         0xFFFFFFFF, // white
