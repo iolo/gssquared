@@ -172,7 +172,7 @@ void frame_appevent(computer_t *computer, cpu_state *cpu) {
 /*
  * Update window
  */
-void frame_video_update(computer_t *computer, cpu_state *cpu, bool force_full_frame = false) {
+void frame_video_update(computer_t *computer, bool force_full_frame = false) {
 
     computer->video_system->update_display(force_full_frame);    
     osd->render();
@@ -280,7 +280,7 @@ bool run_one_frame(computer_t *computer) {
         // cpu->video_scanner might be null here.
         int x = ds->video_scanner->get_frame_scan()->get_count();
         if (x > 0) {
-            printf("Video scanner has %d samples @ speed shift [%d,%d]\n", x, ds->video_scanner->hcount, ds->video_scanner->get_vcount());
+            printf("Video scanner has %d samples @ speed shift [%d,%d]\n", x, ds->video_scanner->get_hcount(), ds->video_scanner->get_vcount());
         }
     }
 
@@ -311,7 +311,7 @@ bool run_one_frame(computer_t *computer) {
 
         /* Emit Video Frame */
         // set flag to force full frame draw instead of cycle based draw.
-        MEASURE(computer->display_times, frame_video_update(computer, cpu, true));
+        MEASURE(computer->display_times, frame_video_update(computer, true));
 
         // if we're in stepwise mode, we should increment these only if we got to end of frame.
         if (clock->get_c14m() >= clock->get_frame_end_c14M()) {
@@ -386,7 +386,7 @@ bool run_one_frame(computer_t *computer) {
 
         /* Emit Video Frame */
         if (computer->execution_mode != EXEC_STEP_INTO) {
-            MEASURE(computer->display_times, frame_video_update(computer, cpu));
+            MEASURE(computer->display_times, frame_video_update(computer));
         }
         
         // calculate what sleep-until time should be.
@@ -473,7 +473,7 @@ bool run_one_frame(computer_t *computer) {
     
             /* Emit Video Frame */
     
-            MEASURE(computer->display_times, frame_video_update(computer, cpu));
+            MEASURE(computer->display_times, frame_video_update(computer, true));
     
 
         // update frame window counters.
