@@ -272,16 +272,23 @@ bool run_one_frame(computer_t *computer) {
 
         if (clock->get_clock_mode() == CLOCK_FREE_RUN) {
             speaker_state->sp->reset(clock->get_frame_start_c14M());
+            int x = ds->video_scanner->get_frame_scan()->get_count();
+            if (x > 100) {
+                printf("Video scanner has %d samples @ speed shift [%d,%d]\n", x, ds->video_scanner->get_hcount(), ds->video_scanner->get_vcount());
+            }
+        } else {
+            int x = ds->video_scanner->get_frame_scan()->get_count();
+            if (x > 100) {
+                printf("Video scanner has %d samples @ speed shift [%d,%d]\n", x, ds->video_scanner->get_hcount(), ds->video_scanner->get_vcount());
+            }
         }
 
         clock->set_clock_mode(computer->speed_new);
-        
-        display_update_video_scanner(ds, cpu);
-        // cpu->video_scanner might be null here.
-        int x = ds->video_scanner->get_frame_scan()->get_count();
-        if (x > 0) {
-            printf("Video scanner has %d samples @ speed shift [%d,%d]\n", x, ds->video_scanner->get_hcount(), ds->video_scanner->get_vcount());
+
+        if (computer->speed_new == CLOCK_FREE_RUN) {
+            assert(true);
         }
+        display_update_video_scanner(ds);
     }
 
     if (computer->execution_mode == EXEC_STEP_INTO) {
@@ -409,6 +416,7 @@ bool run_one_frame(computer_t *computer) {
         computer->last_cycle_time = SDL_GetTicksNS(); 
 
     } else { // Ludicrous Speed!
+
         // TODO: how to handle VBL timing here. estimate it based on realtime?
         computer->set_frame_start_cycle(); // todo: unsure if this is right..
         uint64_t frame_length_ns = (computer->frame_count & 1) ? clock->get_us_per_frame_odd() : clock->get_us_per_frame_even();

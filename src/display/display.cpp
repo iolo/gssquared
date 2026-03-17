@@ -1158,7 +1158,7 @@ uint8_t display_read_C02EF(void *context, uint32_t address) {
     else return c02e;
 }
 
-void display_update_video_scanner(display_state_t *ds, cpu_state *cpu) {
+void display_update_video_scanner(display_state_t *ds) {
     if (ds->clock->get_clock_mode() == CLOCK_FREE_RUN) {
         ds->framebased = true;
         ds->clock->set_video_scanner(nullptr);
@@ -1372,7 +1372,7 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
     mmu->set_C0XX_read_handler(0xC057, { txt_bus_read_C057, ds });
     mmu->set_C0XX_write_handler(0xC057, { txt_bus_write_C057, ds });
 
-    display_update_video_scanner(ds, cpu);
+    display_update_video_scanner(ds);
 
     computer->sys_event->registerHandler(SDL_EVENT_KEY_DOWN, [ds](const SDL_Event &event) {
         return handle_display_event(ds, event);
