@@ -124,6 +124,23 @@ void Container_t::layout() {
     }
 }
 
+SDL_FRect Container_t::get_effective_bounds() const {
+    float x1 = tp.x, y1 = tp.y;
+    float x2 = tp.x + tp.w, y2 = tp.y + tp.h;
+    for (size_t i = 0; i < tiles.size(); i++) {
+        if (tiles[i] && tiles[i]->is_visible()) {
+            float tx, ty, tw, th;
+            tiles[i]->get_tile_position(tx, ty);
+            tiles[i]->get_tile_size(&tw, &th);
+            if (tx < x1) x1 = tx;
+            if (ty < y1) y1 = ty;
+            if (tx + tw > x2) x2 = tx + tw;
+            if (ty + th > y2) y2 = ty + th;
+        }
+    }
+    return { x1, y1, x2 - x1, y2 - y1 };
+}
+
 /**
  * @brief Handles mouse events for the container and its tiles.
  * @param event The SDL event to handle.
@@ -146,28 +163,31 @@ bool Container_t::handle_mouse_event(const SDL_Event& event) {
             mouse_x = event.button.x;
             mouse_y = event.button.y;
         }
-        
-        bool is_inside = (mouse_x >= tp.x && mouse_x <= tp.x + tp.w &&
-                          mouse_y >= tp.y && mouse_y <= tp.y + tp.h);
+
+        SDL_FRect eb = get_effective_bounds();
+        bool is_inside = (mouse_x >= eb.x && mouse_x <= eb.x + eb.w &&
+                          mouse_y >= eb.y && mouse_y <= eb.y + eb.h);
 
         if (is_inside) {
             for (size_t i = 0; i < tiles.size(); i++) {
                 if (tiles[i] && tiles[i]->is_visible()) {
                     bool consumed = tiles[i]->handle_mouse_event(event);
-                    if (consumed && event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) break;
+                    if (consumed && event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) return true;// break;
                 }
             }
-            return true;  // mouse is inside this container; claim the event from siblings
+            return false; //true;  // mouse is inside this container; claim the event from siblings
         } else {
+            // TODO: does this have no effect?
             // mouse is outside — clear any lingering hover states on children
-            for (size_t i = 0; i < tiles.size(); i++) {
+            /* for (size_t i = 0; i < tiles.size(); i++) {
                 if (tiles[i] && tiles[i]->is_visible() && tiles[i]->is_mouse_hovering()) {
                     SDL_Event fake_motion = event;
+                    fake_motion.type = SDL_EVENT_MOUSE_MOTION;
                     fake_motion.motion.x = mouse_x;
                     fake_motion.motion.y = mouse_y;
                     tiles[i]->handle_mouse_event(fake_motion);
                 }
-            }
+            } */
             return false;
         }
     }

@@ -45,6 +45,8 @@
 #include "systemconfig.hpp"
 #include "SelectButton.hpp"
 #include "DrivesHUD.hpp"
+#include "SpeedSelect.hpp"
+#include "HoverControls.hpp"
 
 // we need to use data passed to us, and pass it to the ShowOpenFileDialog, so when the file select event
 // comes back later, we know which drive this was for.
@@ -183,7 +185,8 @@ void OSD::set_raise_window() {
 }
 
 OSD::OSD(computer_t *computer, SDL_Renderer *rendererp, SDL_Window *windowp, SlotManager_t *slot_manager, int window_width, int window_height, AssetAtlas_t *aa) 
-    : renderer(rendererp), window(windowp), window_w(window_width), window_h(window_height), computer(computer), slot_manager(slot_manager), aa(aa) {
+    : renderer(rendererp), window(windowp), window_w(window_width), window_h(window_height), computer(computer), slot_manager(slot_manager), aa(aa),
+    clock(computer->clock) {
 
     event_queue = computer->event_queue;
 
@@ -456,16 +459,18 @@ OSD::OSD(computer_t *computer, SDL_Renderer *rendererp, SDL_Window *windowp, Slo
     open_btn->set_position(0, 50);
     open_btn->set_fade_frames(512, 4); // hold for one second, then fade out over next second. (roughly)
 
+#if 0
     hover_controls_con = new FadeContainer_t(&ui_ctx, HUD, 512);
     hover_controls_con->set_position(10, 100);
     hover_controls_con->size(65, 500);
-
+#endif
     Style_t SB;
     SB.background_color = 0x00000000;
     SB.border_width = 0;
     SB.border_color = 0x000000FF;
     SB.padding = 0;
 
+#if 0
     {
         LabeledButton *b1 = new LabeledButton(&ui_ctx, ResetButton, "", 0);
         b1->size(60, 60);
@@ -491,17 +496,11 @@ OSD::OSD(computer_t *computer, SDL_Renderer *rendererp, SDL_Window *windowp, Slo
         });
         hover_controls_con->add(b2);
 
-        // clone each item in speed_con into a new container "hov_speed_con"
-        hov_speed_con = new Container_t(&ui_ctx, SB);
-        // don't set position yet, we'll do that when we open the submenu.
-        hov_speed_con->size(360, 65);
-        hov_speed_con->add(new SelectButton_t(*speed_btn_10));
-        hov_speed_con->add(new SelectButton_t(*speed_btn_28));
-        hov_speed_con->add(new SelectButton_t(*speed_btn_71));
-        hov_speed_con->add(new SelectButton_t(*speed_btn_14));
-        hov_speed_con->add(new SelectButton_t(*speed_btn_8));
+        hov_speed_con = new SpeedSelect_t(&ui_ctx, SB, clock);
         hov_speed_con->set_visible(false);
-        hov_containers.push_back(hov_speed_con);       
+
+        hover_controls_con->add(hov_speed_con);
+        ncontainers.push_back(hover_controls_con);
 
         hov_speed = new LabeledButton(&ui_ctx, MHz1_0Button, "Speed", 0);
         hov_speed->size(60, 60);
@@ -510,9 +509,9 @@ OSD::OSD(computer_t *computer, SDL_Renderer *rendererp, SDL_Window *windowp, Slo
             if (!hov_speed_con->is_visible()) {            
                 // get position of b4
                 float x,y;
+                hov_speed_con->set_visible(true);
                 hov_speed->get_tile_position(x, y);
                 hov_speed_con->set_position(x+60, y);
-                hov_speed_con->set_visible(true);
                 hov_speed_con->layout();
             } else hov_speed_con->set_visible(false);
         
@@ -522,6 +521,9 @@ OSD::OSD(computer_t *computer, SDL_Renderer *rendererp, SDL_Window *windowp, Slo
         hover_controls_con->layout();
 
     }
+#endif
+    hover_controls_con = new HoverControls_t(&ui_ctx, SB, clock);
+    ncontainers.push_back(hover_controls_con);
 
     system_config = computer->get_system();
     system_badge = new Button_t(&ui_ctx, computer->platform->image_id, SB);
@@ -648,10 +650,17 @@ void OSD::update() {
     hud_drive_container->set_visible((currentSlideStatus == SLIDE_OUT) ? true : false);
 
     speed_con->selected_value(getMenuInterface()->getCurrentSpeed());
-    hov_speed->set_assetID(speed_asset.at(getMenuInterface()->getCurrentSpeed()));
-    hov_speed_con->selected_value(getMenuInterface()->getCurrentSpeed());
+    //hov_speed->set_assetID(speed_asset.at(getMenuInterface()->getCurrentSpeed()));
+    //hov_speed_con->selected_value(getMenuInterface()->getCurrentSpeed());
     mon_color_con->selected_value(getMenuInterface()->getCurrentMonitor());
 
+    // it can be visible but transparent at same time. visible means it can be hit-tested and displayed.
+/*     if (is_mouse_captured()) {
+        hover_controls_con->set_visible(false);
+    } else {
+        hover_controls_con->set_visible(true);
+    }
+ */
     for (Container_t* container : ncontainers) {
         container->update();
     }
@@ -745,10 +754,7 @@ void OSD::render() {
 
         open_btn->render(); // this now takes care of its own fade-out.
 
-        hover_controls_con->render();
-        for (Container_t* container : hov_containers) {
-            container->render();
-        }
+        //hover_controls_con->render();
 
         // display the MHz at the bottom of the screen.
         {
@@ -812,8 +818,14 @@ bool OSD::event(const SDL_Event &event) {
             return(true);
         }
         
-        if (! is_mouse_captured()) {
-            hover_controls_con->handle_mouse_event(event); // only handles if still visible.
+        /* if (! is_mouse_captured()) {
+            if (hover_controls_con->handle_mouse_event(event)) return(true); // only handles if still visible.
+        } */
+        //hov_speed_con->handle_mouse_event(event);
+        for (Container_t* container : ncontainers) {
+            if (container->handle_mouse_event(event) && event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                return(true);
+            }
         }
     }
 

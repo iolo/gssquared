@@ -84,6 +84,10 @@ bool MenuInterface::isPaused() {
 	return computer_ && computer_->execution_mode == EXEC_PAUSED;
 }
 
+bool MenuInterface::isMouseCaptured() {
+	return SDL_GetWindowRelativeMouseMode(computer_->video_system->window);
+}
+
 void MenuInterface::setControllerMode(int mode) {
 	switch (mode) {
 		case JOYSTICK_APPLE_GAMEPAD: pushMenuEvent(MENU_CONTROLLER_GAMEPAD); break;

@@ -140,7 +140,7 @@ public:
 
     void on_click(EventHandler handler);
 
-    void set_opacity(int o);
+    virtual void set_opacity(int o);
     int calc_opacity(uint32_t color);
     uint32_t opaque(uint32_t color);
     void get_tile_position(float &x, float &y) const { x = tp.x; y = tp.y; }

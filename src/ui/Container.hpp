@@ -161,7 +161,7 @@ public:
      * @brief Shows or hides the container.
      * @param visible If true, the container is visible, otherwise it is hidden.
      */
-    inline void set_visible(bool visible) { this->visible = visible; };
+    virtual void set_visible(bool visible) { this->visible = visible; };
     inline bool is_visible() const { return visible; };
 
     /**
@@ -170,4 +170,20 @@ public:
      */
     void selected_value(int64_t v);
     int64_t selected_value() const { return _selected_value; }
+
+    /** Cascades opacity to all child tiles so the whole container fades uniformly. */
+    void set_opacity(int o) override {
+        Tile_t::set_opacity(o);
+        for (Tile_t* tile : tiles) {
+            if (tile) tile->set_opacity(o);
+        }
+    }
+
+    /**
+     * @brief Returns the union of the container's own rect and all visible children's rects.
+     *
+     * This allows children positioned outside the container's nominal bounds (e.g. flyout
+     * sub-menus) to still receive hit-tested events from this container.
+     */
+    SDL_FRect get_effective_bounds() const;
 }; 

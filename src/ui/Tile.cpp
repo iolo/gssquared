@@ -100,7 +100,9 @@ void Tile_t::render() {
 }
 
 bool Tile_t::handle_mouse_event(const SDL_Event& event) {
-    if (/* !active ||  */!visible) return(false);
+    if (/* !active ||  */!visible) {
+        return(false);
+    }
 
     if (event.type == SDL_EVENT_MOUSE_MOTION) {
         float mouse_x = event.motion.x;

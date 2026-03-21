@@ -55,6 +55,7 @@ public:
 	bool getSleepMode();
 	bool isEmulationRunning();
 	bool isPaused();
+	bool isMouseCaptured();
 	int  getCurrentControllerMode();
 	std::vector<MenuDriveInfo> getDriveList();
 };

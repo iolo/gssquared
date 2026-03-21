@@ -22,14 +22,14 @@
 #include <SDL3/SDL.h>
 #include "util/MenuInterface.h"
 #include "MainAtlas.hpp"
+#include "NClock.hpp"
 
 #include "slots.hpp"
 
 #include "Container.hpp"
 #include "ModalContainer.hpp"
-#include "FadeContainer.hpp"
 #include "MousePositionTile.hpp"
-
+#include "HoverControls.hpp"
 #include "UIContext.hpp"
 #include "util/TextRenderer.hpp"
 #include "FadeButton.hpp"
@@ -99,10 +99,7 @@ protected:
     ModalContainer_t *activeModal = nullptr;
     ModalContainer_t *diskii_save_con = nullptr;
 
-    FadeContainer_t *hover_controls_con = nullptr;
-    std::vector<Container_t *> hov_containers;
-    Button_t *hov_speed = nullptr;
-    Container_t *hov_speed_con = nullptr;
+    HoverControls_t *hover_controls_con = nullptr;
     
     MousePositionTile_t* mouse_pos = nullptr;
     AssetAtlas_t *aa = nullptr;
@@ -128,13 +125,13 @@ protected:
         {MONITOR_MONO_AMBER, AmberDisplayButton},
         {MONITOR_MONO_WHITE, WhiteDisplayButton},
     };
-    const std::map<int, int> speed_asset =  {
+    /* const std::map<int, int> speed_asset =  {
         {SPEED_FREE_RUN, MHzInfinityButton},
         {SPEED_1_0, MHz1_0Button},
         {SPEED_2_8, MHz2_8Button},
         {SPEED_7_1, MHz7_159Button},
         {SPEED_14_3, MHz14_318Button},
-    };
+    }; */
 
 public:
     /**

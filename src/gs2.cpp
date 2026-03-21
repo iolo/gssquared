@@ -659,7 +659,6 @@ void transition_to_emulation(GS2AppState *state, int system_id) {
     }
 
     osd = new OSD(computer, vs->renderer, vs->window, computer->slot_manager, 1120, 768, state->aa);
-    osd->set_clock(computer->clock);
 
     // TODO: this should be handled differently. have osd save/restore?
     int error = SDL_SetRenderTarget(vs->renderer, nullptr);

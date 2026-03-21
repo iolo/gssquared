@@ -302,3 +302,29 @@ Making some progress now with these abstraction changes.
 There are sort of TWO of these. One that displays inside the Control Panel. One that displays at bottom of screen (and which we probably will allow for a user to optionally turn off).
 
 They are currently intertwined, sharing setup, configuration, etc. I don't want to do them twice, but we're not exactly doing them twice. And they don't appear on screen at the same time - it's one or the other. If invisible, all of the logic is bypassed. So, ok then. Let's go ahead and write them independently.
+
+## "Radio" Multi-selectors
+
+ok, we have a few of these. Speed, monitor type; there will be more.
+
+RadioSelect
+contains a number of buttons
+when we click on one of the buttons, we want to signal the parent to update state.
+The parent will have a "set_selection" method for this. It matches the key on each element to find the correct one.
+A subclass then will be the thing that composes a specific "menu". And it sets the onclick for each button, to call the set_selection method.
+And it will override set_selection, to call the parent one but then also call into the system to change the parameter.
+
+Instead of having a FadeContainer specialization, perhaps have an Animator we can pass into Container; Container then instances the Animator we want.
+Do that after I've got the RadioSelect working.
+
+ok, I had to add an ncontainers loop to osd::event, but now it's working! to set the speed. Problem is, we fade out, and, the menu never goes away. What we want is:
+click speed
+speed menu opens
+click speed again to close it
+or, click new speed which sets speed and then closes it.
+So, I can just hide myself, right? oops, menu doesn't open again after that.
+So something is eating events or otherwise not iterating handle_event for children..
+ncontainers
+  hover_controls_con
+    hov_speed_con
+
