@@ -220,7 +220,7 @@ uint8_t read_game_switch_0(void *context, uint32_t address) {
     }
 
     SDL_Keymod mod = SDL_GetModState();
-    if (SDL_GetModState() & KEYMOD_OPENAPPLE) { // TODO: restrict to Apple IIe
+    if (SDL_GetModState() & KEYMOD_OPENAPPLE) { // TODO: restrict to Apple IIe and up
         ds->game_switch_0 = 1;
     }
     return (ds->game_switch_0 ? 0x80 : 0x00) | (ds->mmu->floating_bus_read() & 0x7F);
