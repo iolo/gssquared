@@ -78,6 +78,10 @@ void HoverControls_t::update() {
         set_visible(true);
     }
 
+    if (frameCount == 0) { // if we're not visible, hide the submenu
+        hov_speed_con->set_visible(false);
+    }
+
     hov_speed->set_assetID(speed_asset.at(getMenuInterface()->getCurrentSpeed()));
 }
 

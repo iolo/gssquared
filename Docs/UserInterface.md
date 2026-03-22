@@ -328,3 +328,4 @@ ncontainers
   hover_controls_con
     hov_speed_con
 
+Working pretty well now, but, want to minimize the submenus whenever we hide the main menu.

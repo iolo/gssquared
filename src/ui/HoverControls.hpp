@@ -5,10 +5,11 @@
 #include "NClock.hpp"
 #include <map>
 #include "util/MenuInterface.h"
+#include "SpeedSelect.hpp"
 
 class HoverControls_t : public FadeContainer_t {
 protected:
-    Container_t *hov_speed_con = nullptr;
+    SpeedSelect_t *hov_speed_con = nullptr;
     LabeledButton *hov_speed = nullptr;
     const std::map<int, int> speed_asset =  {
         {SPEED_FREE_RUN, MHzInfinityButton},
