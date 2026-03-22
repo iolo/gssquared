@@ -4,6 +4,7 @@
 #include "MainAtlas.hpp"
 #include "NClock.hpp"
 #include "SpeedSelect.hpp"
+#include "DisplaySelect.hpp"
 #include "util/MenuInterface.h"
 
 HoverControls_t::HoverControls_t(UIContext *ctx, const Style_t& initial_style, NClock *clock) : 
@@ -48,7 +49,11 @@ HoverControls_t::HoverControls_t(UIContext *ctx, const Style_t& initial_style, N
         hov_speed_con = new SpeedSelect_t(ctx, SB, clock);
         hov_speed_con->set_visible(false);
 
+        hov_display_con = new DisplaySelect(ctx, SB);
+        hov_display_con->set_visible(false);
+
         add(hov_speed_con);
+        add(hov_display_con);
         //ncontainers.push_back(hover_controls_con);
 
         hov_speed = new LabeledButton(ctx, MHz1_0Button, "Speed", 0);
@@ -67,6 +72,24 @@ HoverControls_t::HoverControls_t(UIContext *ctx, const Style_t& initial_style, N
             return true;
         });
         add(hov_speed);
+
+        hov_display = new LabeledButton(ctx, ColorDisplayButton, "Display", 0);
+        hov_display->size(60, 60);
+        hov_display->on_click([this](const SDL_Event& event) -> bool {
+            // open the speed submenu container
+            if (!hov_display_con->is_visible()) {            
+                // get position of b4
+                float x,y;
+                hov_display_con->set_visible(true);
+                hov_display->get_tile_position(x, y);
+                hov_display_con->set_position(x+60, y);
+                hov_display_con->layout();
+            } else hov_display_con->set_visible(false);
+        
+            return true;
+        });
+        add(hov_display);
+
         layout();
     }
 }
@@ -78,11 +101,13 @@ void HoverControls_t::update() {
         set_visible(true);
     }
 
-    if (frameCount == 0) { // if we're not visible, hide the submenu
+    if (frameCount == 0) { // if we're not visible, hide the submenus
         hov_speed_con->set_visible(false);
+        hov_display_con->set_visible(false);
     }
 
     hov_speed->set_assetID(speed_asset.at(getMenuInterface()->getCurrentSpeed()));
+    hov_display->set_assetID(monitor_asset.at(getMenuInterface()->getCurrentMonitor()));
 }
 
 HoverControls_t::~HoverControls_t() {
