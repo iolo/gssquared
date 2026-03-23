@@ -4,6 +4,8 @@ GS2 maps your modern computer keyboard, as best it can, to Apple II Keyboard fun
 
 The below tables explain how this is done, where it isn't obvious.
 
+NOTE: Some platforms "eat" keystrokes intended for the Apple II window. E.g. Control-ALT(OA)-ESC on Windows minimizes the window (it's control-ESC). On Windows, doing a mouse capture (F1) can also help capture these keystrokes and let them do the Apple II thing instead of the Windows thing.
+
 | Key | Platform | Action |
 | --- | --- | --- |
 | F1 | All | Release mouse cursor when captured by window |

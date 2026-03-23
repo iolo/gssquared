@@ -28,6 +28,7 @@ resources/*
 !src/devices/prodos_block/Makefile
 packages/*
 .DS_Store
+site/
 6502_65C02_functional_tests/*
 cfg/
 cfg/*

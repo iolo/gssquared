@@ -1,4 +1,4 @@
-# Using GSSquared - User Documentation Index
+# Using GSSquared - User Documentation
 
 * [Menus](Menus.md)
 

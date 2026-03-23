@@ -7,7 +7,7 @@ Looking for how to use GSSquared?
 
 Keep reading for Project Status, Design, and development journals.
 
-* [Project Status](#project-status-as-of-2025-06-12)
+* [Project Status](#project-status-as-of-2026-03-10)
 * [Code Organization](#code-organization)
 
 # Project Status (as of 2026-03-10)
