@@ -86,10 +86,12 @@ void SelectSystem::render() {
         float scale_x, scale_y;
         SDL_GetRenderScale(vs->renderer, &scale_x, &scale_y);
         SDL_SetRenderScale(vs->renderer, 1, 1);
+
+        container->render();
+
         text_renderer->set_color(255,255,255,255);
         text_renderer->render("Choose your retro experience", (window_width / 2), 50, TEXT_ALIGN_CENTER);
 
-        container->render();
         SDL_SetRenderScale(vs->renderer, scale_x, scale_y);
         //updated = false;
         ui_ctx.color(0x000000FF); // set back to 0. Someone isn't correctly setting color elsewhere..
