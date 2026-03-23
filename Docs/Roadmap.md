@@ -58,7 +58,7 @@
 [x] put common controls in hover-over on main page - reset, restart, power-off, open debugger  
 [x] put "modified" and "write protected" indicator of some kind on the disk icons.  
 [x] Add Menus on Mac/Windows
-
+[x] Add Help menu  
 
 ## Release 0.8
 
