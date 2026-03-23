@@ -53,13 +53,18 @@
 [x] Display AppleDisk drives on GS  
 [x] IWM 5.25
 
+## Release 0.7.2
+
+[x] put common controls in hover-over on main page - reset, restart, power-off, open debugger  
+[x] put "modified" and "write protected" indicator of some kind on the disk icons.  
+[x] Add Menus on Mac/Windows
+
+
 ## Release 0.8
 
 Primary Focus: UI
 
-[ ] put common controls in hover-over on main page - reset, restart, power-off, open debugger  
 [ ] Can make custom hw config. (Click "+ Custom").
-[ ] put "modified" and "write protected" indicator of some kind on the disk icons.  
 [ ] when we go to power off (from inside OSD), check to see if disks need writing, and throw up appropriate dialogs.  
 [ ] Add buttons for step/run in the debugger
 [ ] IWM 3.5

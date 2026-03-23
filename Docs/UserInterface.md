@@ -329,3 +329,7 @@ ncontainers
     hov_speed_con
 
 Working pretty well now, but, want to minimize the submenus whenever we hide the main menu.
+
+Windows menus implemented. works well. It's still displayed in fullscreen though, so we probably want to hide it when in fullscreen. Otherwise it's kind of awkward.
+OH, also on Windows the "Choose your retro experience" is partly erased at the bottom. The buttons container backround was black and there must have been some overlap. Not sure why it didn't do the same thing on Mac? resolution / placement difference I guess.
+

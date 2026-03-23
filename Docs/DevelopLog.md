@@ -10825,17 +10825,24 @@ So when we want to leave ludicrous speed, we need to run cpu until we've synchro
 I wonder if LS should:
 ```
   while (...)
-    while (cycles < frame_end)) {
-      if we exceeded 16.67ms
-        do frame stuff
-    }
+    while (cycles < frame_end));
+    if we exceeded 16.67ms
+      do frame stuff
   }
 ```
 then we always have the right number of cycles coming out of stuff. 
 
+So the ScanBuf is messed up coming out of LS? Keep going back/forth on this.
+ok so on the premise that it's getting borked switching INTO LS, where do we control LS. F9. 
+ok. theory.
+user request LS. toggle. new_speed=LS.
+user request lower speed. new_speed=14.
+if the 14M's isn't correctly tracked, we could generate fewer vid_cycles than needed the next go-round.
+(This is unresolved)
+
 we will want a flag here, to switch between: a) draw what video data we have in the ScanBuffer right now (without deleting it!), and b) draw the full frame.
 
-[ ] find all instances of 14318180 in the code and tie it to mclock or a global const  
+[x] find all instances of 14318180 in the code and tie it to mclock or a global const  
 
 SmartPort TNs have needed info!
 https://mirrors.apple2.org.za/Apple%20II%20Documentation%20Project/Companies/Apple/Documentation/Apple%20II%20Technical%20Notes%201989-09.pdf
@@ -10847,3 +10854,15 @@ GS/OS is not calling eject when I eject a disk.. there may be some status or cap
 the smartport code is very repetitious. Let's examine it for code reuse. Big win here!
 
 [ ] there's a bug in 5.25 floppy code, sometimes when I insert a disk when the drive is spinning (but empty) it reads partially but eventually craps out.
+
+## Mar 21, 2026
+
+UI stuff:
+wrap up speed setting widget
+load symbols, save trace
+
+[x] on Windows (at least) the OA/CA keys on //e are incorrect (they are still left win and right win). (it was just Windows)
+
+## Mar 22, 2026
+
+I investigated integrating in the Cyrene debugger. It doesn't look all that bad. There is a relatively small contact surface where it needs state variables. They are somewhat spread around the system tho. Where KEGS has gobs of global variables for everything, we have things broken into different modules.
