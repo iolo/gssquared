@@ -17,6 +17,7 @@
 #define IDM_FILE_CLOSE       800
 #define IDM_APP_QUIT         801
 #define IDM_SETTINGS_SLEEP   802
+#define IDM_HELP_OPEN_DOCS   900
 
 // DEPRECATED: see commented-out WM_ENTERMENULOOP/WM_EXITMENULOOP/WM_TIMER block below.
 // #define MENU_TIMER_ID   1
@@ -30,6 +31,7 @@ static HMENU g_settingsPopup  = NULL;
 static HMENU g_speedMenu      = NULL;
 static HMENU g_controllerMenu = NULL;
 static HMENU g_monitorMenu    = NULL;
+static HMENU g_helpPopup      = NULL;
 static std::vector<storage_key_t> g_driveKeys;
 
 // DEPRECATED: only consumed by the commented-out timer block below.
@@ -193,6 +195,14 @@ static void updatePopupState(HMENU popup)
         return;
     }
 
+    // ── Help (always enabled regardless of emulation state) ──────────────────
+    if (popup == g_helpPopup) {
+        int n = GetMenuItemCount(g_helpPopup);
+        for (int i = 0; i < n; ++i)
+            setItemEnable(g_helpPopup, i, true);
+        return;
+    }
+
     // ── Generic fallback (Edit, Machine, Display popups) ─────────────────────
     // Enable/disable every non-separator item based on running state.
     int n = GetMenuItemCount(popup);
@@ -253,6 +263,11 @@ static void dispatchCommand(UINT id)
 
     // Settings
     case IDM_SETTINGS_SLEEP: mi->toggleSleepMode(); return;
+
+    // Help
+    case IDM_HELP_OPEN_DOCS:
+        SDL_OpenURL("https://jawaidbazyar2.github.io/gssquared/");
+        return;
 
     // Game Controller
     case MENU_CONTROLLER_GAMEPAD: mi->setControllerMode(0); return;
@@ -397,6 +412,12 @@ static void setupMenus()
     AppendMenuW(g_menuBar, MF_STRING | MF_POPUP,
                 reinterpret_cast<UINT_PTR>(displayPopup), L"Display");
 
+    // ── Help ────────────────────────────────────────────────────────────────
+    g_helpPopup = CreatePopupMenu();
+    AppendMenuW(g_helpPopup, MF_STRING, IDM_HELP_OPEN_DOCS, L"Online Documentation");
+    AppendMenuW(g_menuBar, MF_STRING | MF_POPUP,
+                reinterpret_cast<UINT_PTR>(g_helpPopup), L"Help");
+
     SetMenu(g_hwnd, g_menuBar);
 }
 
@@ -426,6 +447,7 @@ void initMenu(SDL_Window *window)
     g_speedMenu      = NULL;
     g_controllerMenu = NULL;
     g_monitorMenu    = NULL;
+    g_helpPopup      = NULL;
     g_driveKeys.clear();
 
     setupMenus();

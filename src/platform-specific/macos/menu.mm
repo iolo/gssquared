@@ -121,6 +121,7 @@ I don't know what all these words mean exactly. But I confirmed it does seem to 
 - (void)editCopyScreen:(id)sender;
 - (void)editPasteText:(id)sender;
 - (void)diskToggleDrive:(id)sender;
+- (void)helpOpenDocs:(id)sender;
 @end
 
 @implementation MenuActionHandler
@@ -148,6 +149,10 @@ I don't know what all these words mean exactly. But I confirmed it does seem to 
 	if (menuItem.action == @selector(controllerMode:)) {
 		int current = getMenuInterface()->getCurrentControllerMode();
 		[menuItem setState:([menuItem tag] == current) ? NSControlStateValueOn : NSControlStateValueOff];
+	}
+	// Help items are always available regardless of emulation state
+	if (menuItem.action == @selector(helpOpenDocs:)) {
+		return YES;
 	}
 	// All other items (File, Edit, Machine, Settings, Display) require emulation
 	return getMenuInterface()->isEmulationRunning();
@@ -184,6 +189,11 @@ I don't know what all these words mean exactly. But I confirmed it does seem to 
 	NSNumber *keyNumber = (NSNumber *)[item representedObject];
 	storage_key_t key((uint64_t)[keyNumber unsignedLongLongValue]);
 	getMenuInterface()->diskToggle(key);
+}
+
+- (void)helpOpenDocs:(id)sender {
+	SDL_OpenURL("https://jawaidbazyar2.github.io/gssquared/");
+	(void)sender;
 }
 @end
 
@@ -526,6 +536,16 @@ static void setupMenus(void) {
 		keyEquivalent:@""] autorelease];
 	[fullScreenItem setTarget:sMenuHandler];
 	[displayMenu addItem:fullScreenItem];
+
+	// Help menu
+	NSMenu *helpMenu = addMenu(NSLocalizedString(@"Help", nil));
+
+	NSMenuItem *onlineDocsItem = [[[NSMenuItem alloc]
+		initWithTitle:NSLocalizedString(@"Online Documentation", nil)
+		       action:@selector(helpOpenDocs:)
+		keyEquivalent:@""] autorelease];
+	[onlineDocsItem setTarget:sMenuHandler];
+	[helpMenu addItem:onlineDocsItem];
 }
 
 void initMenu(SDL_Window *window) {
