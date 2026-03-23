@@ -537,8 +537,11 @@ static void setupMenus(void) {
 	[fullScreenItem setTarget:sMenuHandler];
 	[displayMenu addItem:fullScreenItem];
 
-	// Help menu
-	NSMenu *helpMenu = addMenu(NSLocalizedString(@"Help", nil));
+	// Docs menu — intentionally NOT named "Help" to prevent macOS from
+	// injecting its search bar (which requires an Apple Help Book bundle)
+	// and to stop macOS from intercepting Cmd+? which must pass through
+	// to the emulated Apple II.
+	NSMenu *helpMenu = addMenu(NSLocalizedString(@"Docs", nil));
 
 	NSMenuItem *onlineDocsItem = [[[NSMenuItem alloc]
 		initWithTitle:NSLocalizedString(@"Online Documentation", nil)

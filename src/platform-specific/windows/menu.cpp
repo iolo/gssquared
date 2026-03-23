@@ -412,11 +412,11 @@ static void setupMenus()
     AppendMenuW(g_menuBar, MF_STRING | MF_POPUP,
                 reinterpret_cast<UINT_PTR>(displayPopup), L"Display");
 
-    // ── Help ────────────────────────────────────────────────────────────────
+    // ── Docs ─────────────────────────────────────────────────────────────────
     g_helpPopup = CreatePopupMenu();
     AppendMenuW(g_helpPopup, MF_STRING, IDM_HELP_OPEN_DOCS, L"Online Documentation");
     AppendMenuW(g_menuBar, MF_STRING | MF_POPUP,
-                reinterpret_cast<UINT_PTR>(g_helpPopup), L"Help");
+                reinterpret_cast<UINT_PTR>(g_helpPopup), L"Docs");
 
     SetMenu(g_hwnd, g_menuBar);
 }
