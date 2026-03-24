@@ -431,15 +431,22 @@ endif()
 
 if(UNIX AND NOT APPLE)
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+    pkg_check_modules(IMGUI REQUIRED imgui)
 
-    add_library(platform_specific src/platform-specific/linux/menu.cpp)
+    add_library(platform_specific
+        src/platform-specific/linux/menu.cpp
+        src/platform-specific/linux/imgui_impl_sdl3.cpp
+        src/platform-specific/linux/imgui_impl_sdlrenderer3.cpp
+    )
 
-    target_include_directories(platform_specific PRIVATE ${GTK3_INCLUDE_DIRS})
-    target_compile_options(platform_specific PRIVATE ${GTK3_CFLAGS_OTHER})
+    target_include_directories(platform_specific PRIVATE
+        ${IMGUI_INCLUDE_DIRS}
+        /usr/include/imgui/backends
+    )
+    target_compile_options(platform_specific PRIVATE ${IMGUI_CFLAGS_OTHER})
     target_link_libraries(platform_specific PRIVATE
         SDL3::SDL3-shared
-        ${GTK3_LIBRARIES}
+        ${IMGUI_LIBRARIES}
     )
 endif()
 
