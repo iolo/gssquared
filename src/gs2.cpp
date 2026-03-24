@@ -863,6 +863,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     GS2AppState *state = (GS2AppState *)appstate;
 
+    // Let the platform menu consume the event first (Linux hamburger/right-click)
+    if (handleMenuEvent(event)) return SDL_APP_CONTINUE;
+
     if (state->phase == PHASE_SYSTEM_SELECT) {
         state->select_system->event(*event);
         if (event->type == SDL_EVENT_QUIT) {
@@ -888,6 +891,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
 
 SDL_AppResult SDL_AppIterate(void *appstate) {
     GS2AppState *state = (GS2AppState *)appstate;
+
+    // Pump any pending GTK/GDK events (Linux menu). Called here rather than
+    // in SDL_AppEvent to avoid blocking SDL's X11 connection (deadlock risk).
+    pumpMenuEvents();
 
     if (state->phase == PHASE_SYSTEM_SELECT) {
         /* Render the selection UI (one frame). Events already dispatched by SDL_AppEvent. */

@@ -38,3 +38,15 @@ typedef SDL_AppResult (*MenuIterateCallback)(void *appstate);
 
 void initMenu(SDL_Window* window);
 void setMenuTrackingCallback(MenuIterateCallback callback, void *appstate);
+
+// Called from SDL_AppEvent; returns true if the event was consumed by the menu.
+// On non-Linux platforms this is a no-op returning false.
+#if defined(__linux__)
+bool handleMenuEvent(const SDL_Event *event);
+void renderMenuOverlay(SDL_Renderer *renderer, int win_w, int win_h);
+void pumpMenuEvents();
+#else
+inline bool handleMenuEvent(const SDL_Event * /*event*/) { return false; }
+inline void renderMenuOverlay(SDL_Renderer * /*renderer*/, int /*win_w*/, int /*win_h*/) {}
+inline void pumpMenuEvents() {}
+#endif

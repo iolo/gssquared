@@ -42,6 +42,7 @@
 #include "util/printf_helper.hpp"
 #include "paths.hpp"
 #include "util/MenuInterface.h"
+#include "platform-specific/menu.h"
 #include "systemconfig.hpp"
 #include "SelectButton.hpp"
 #include "DrivesHUD.hpp"
@@ -777,6 +778,9 @@ void OSD::render() {
             //}            
         }
     }
+    // Draw the platform menu overlay (Linux: ☰ hamburger button) at 1:1 scale
+    renderMenuOverlay(renderer, window_width, window_height);
+
     // Restore scale
     SDL_SetRenderScale(renderer, ox,oy);
     // set draw color to black - why?
