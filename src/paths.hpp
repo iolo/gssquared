@@ -35,5 +35,6 @@ class Paths {
         static void calc_docs(std::string& return_path, std::string file) ;
         static void calc_home(std::string& return_path, std::string file) ;
         static const std::string& get_last_file_dialog_dir();
-        static void set_last_file_dialog_dir(const std::string& dir);
+        /** Directory of the last SDL_ShowOpenFileDialog selection (not the file name). */
+        static void set_last_file_dialog_dir(const std::string& selected_path);
 };

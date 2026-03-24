@@ -17,6 +17,8 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_filesystem.h>
+#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 
 #include "paths.hpp"
@@ -90,9 +92,21 @@ const std::string& get_pref_path(void) {
 void Paths::initialize(bool console_mode) {
     base_path = get_base_path(console_mode);
     pref_path = get_pref_path();
-    // this returns a const char * and SDL_free wants char *, so ...
-    home_folder = SDL_GetUserFolder(SDL_FOLDER_HOME);
-    docs_folder = SDL_GetUserFolder(SDL_FOLDER_DOCUMENTS);
+
+    const char *home = SDL_GetUserFolder(SDL_FOLDER_HOME);
+    if (home && home[0]) {
+        home_folder = home;
+    } else {
+        const char *env_home = std::getenv("HOME");
+        home_folder = (env_home && env_home[0]) ? std::string(env_home) : std::string("/");
+    }
+
+    const char *docs = SDL_GetUserFolder(SDL_FOLDER_DOCUMENTS);
+    if (docs && docs[0]) {
+        docs_folder = docs;
+    } else {
+        docs_folder = home_folder;
+    }
 }
 
 void Paths::calc_base(std::string& return_path, std::string file) {
@@ -121,9 +135,20 @@ const std::string& Paths::get_last_file_dialog_dir() {
     return last_file_dialog_dir;
 }
 
-void Paths::set_last_file_dialog_dir(const std::string& dir) {
+void Paths::set_last_file_dialog_dir(const std::string& selected_path) {
+    if (selected_path.empty()) {
+        return;
+    }
+    // SDL_ShowOpenFileDialog default_location is a folder; store directory only, not the file name.
+    std::filesystem::path p(selected_path);
+    std::filesystem::path dir = p.parent_path();
+    if (dir.empty()) {
+        std::error_code ec;
+        p = std::filesystem::weakly_canonical(std::filesystem::absolute(p), ec);
+        dir = p.parent_path();
+    }
     if (dir.empty()) {
         return;
     }
-    last_file_dialog_dir = dir;
+    last_file_dialog_dir = dir.lexically_normal().string();
 }
