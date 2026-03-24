@@ -248,6 +248,7 @@ void initMenu(SDL_Window *window)
     ImGui::CreateContext();
 
     ImGuiIO &io = ImGui::GetIO();
+    io.IniFilename  = nullptr; // disable imgui.ini persistence — no layout to save
     io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange; // don't let ImGui hide the cursor
 
     // Load project font at a comfortable size; fall back to built-in if not found
