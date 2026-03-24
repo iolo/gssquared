@@ -52,6 +52,12 @@ static void restore_grab()
     }
 }
 
+/** True while the emulator holds relative mode / grab (Machine → Capture Mouse). */
+static bool emulated_mouse_captured()
+{
+    return SDL_GetWindowMouseGrab(g_window) || SDL_GetWindowRelativeMouseMode(g_window);
+}
+
 // ── Menu rendering ────────────────────────────────────────────────────────────
 
 static void render_drives_menu()
@@ -305,11 +311,12 @@ bool handleMenuEvent(const SDL_Event *event)
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
         event->button.button == SDL_BUTTON_RIGHT)
     {
-        bool is_grabbed = SDL_GetWindowMouseGrab(g_window) ||
-                          SDL_GetWindowRelativeMouseMode(g_window);
-        if (is_grabbed)
+        if (emulated_mouse_captured())
             release_grab();
     }
+
+    if (emulated_mouse_captured())
+        return false; // let the emulator receive input; ImGui menu is hidden
 
     ImGui_ImplSDL3_ProcessEvent(event);
 
@@ -327,6 +334,9 @@ void pumpMenuEvents()
 void renderMenuOverlay(SDL_Renderer *renderer, int /*win_w*/, int /*win_h*/)
 {
     if (!g_imgui_inited) return;
+
+    if (emulated_mouse_captured())
+        return;
 
     // Manage mouse grab: release while ImGui wants the mouse, restore when done.
     {
