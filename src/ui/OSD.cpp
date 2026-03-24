@@ -72,17 +72,14 @@ static void /* SDLCALL */ file_dialog_callback(void* userdata, const char* const
     OSD *osd = data->osd;
     osd->set_raise_window();
 
-    if (filelist[0] == nullptr) return; // user cancelled dialog
+    // SDL: NULL = error; non-NULL with filelist[0] == NULL = cancel (portal uses { NULL })
+    if (!filelist || !filelist[0]) return;
 
     // returns callback: /Users/bazyar/src/AppleIIDisks/33master.dsk when selecting
     // a disk image file.
     printf("file_dialog_callback: %s\n", filelist[0]);
-    
-    // Remember the full file path for next time - SDL3 uses it to determine initial directory
-    if (filelist[0] != nullptr) {
-        std::string filepath(filelist[0]);
-        Paths::set_last_file_dialog_dir(filepath);
-    }
+
+    Paths::set_last_file_dialog_dir(filelist[0]);
     
     // 1. unmount current image (if present).
     // 2. mount new image.
@@ -116,7 +113,7 @@ void OSD::open_file_dialog(storage_key_t key) {
         get_window(),
         filters,
         sizeof(filters)/sizeof(SDL_DialogFileFilter),
-        last_path.c_str(),
+        last_path.empty() ? nullptr : last_path.c_str(),
         false);
 }
 
@@ -160,7 +157,7 @@ void unidisk_button_click(void *userdata) {
         osd->get_window(),
         filters,
         sizeof(filters)/sizeof(SDL_DialogFileFilter),
-        last_path.c_str(),
+        last_path.empty() ? nullptr : last_path.c_str(),
         false);
 }
 
