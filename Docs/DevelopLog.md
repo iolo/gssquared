@@ -10866,3 +10866,25 @@ load symbols, save trace
 ## Mar 22, 2026
 
 I investigated integrating in the Cyrene debugger. It doesn't look all that bad. There is a relatively small contact surface where it needs state variables. They are somewhat spread around the system tho. Where KEGS has gobs of global variables for everything, we have things broken into different modules.
+
+"abnormal LORES"
+
+https://github.com/jawaidbazyar2/gssquared/issues/98
+
+now, we do the "undelayed processing of HIRES40" already. (VM_HIRES_NOSHIFT in VSG).
+
+LORES is normally a 14MHz operation, because the LORES pattern for each color is "painted" across all 560 dot positions.
+
+I'm going to need to catch this state in VideoScanner, call it VM_LORES_7M.
+
+In hires noshift, we are repeating every 7M dot twice, and there is no relative shift.
+
+So what do we normally paint with lores color say 1.
+
+10001000100010 00100010001000 1000
+
+So what I *seem* to be seeing in LORES7M, is this (but doubled):
+1000100 0010001 1000
+11000000110000 00001100001100
+
+imagine the same lores shift register, just operating at half the speed. So we load the pattern in for our current position same as with current LORES code. But then shift 7 times and double each dot.

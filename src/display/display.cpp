@@ -1401,9 +1401,9 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
             ds->f_altcharset = false;
             ds->video_scanner->reset_80col();
             ds->video_scanner->reset_altchrset();
-            ds->video_scanner->reset_dblres();
             ds->video_scanner->set_lores();
-            // TODO: set ANC3 to 7M video mode
+            // set ANC3 to 7M video mode. "set dblres" is opposite sense of ANC3 OFF.
+            ds->video_scanner->set_dblres();
             ds->a2_display->set_char_set(ds->f_altcharset);
             ds->a2_display->set_80store(false); // TODO: check this, but it makes sense.
         }
