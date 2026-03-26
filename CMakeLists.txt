@@ -176,6 +176,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 configure_sdl_builds()
 
+# When CMAKE_INSTALL_PREFIX points inside the build tree, CMake's RPATH_CHECK
+# deletes the source .so before file(INSTALL) can copy it (source == destination).
+# Skipping RPATH manipulation on the vendored SDL libs avoids this: the main
+# executable already carries the correct $ORIGIN/../lib RPATH to find them.
+foreach(_sdl_lib SDL3-shared SDL3_image-shared SDL3_ttf-shared SDL3_net-shared)
+    if(TARGET ${_sdl_lib})
+        set_target_properties(${_sdl_lib} PROPERTIES SKIP_INSTALL_RPATH TRUE)
+    endif()
+endforeach()
+
 # Define flags for different build types
 #set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 -ggdb3 -fsanitize=address,undefined -fno-omit-frame-pointer")
 if(WIN32)
@@ -430,23 +440,18 @@ if(APPLE)
 endif()
 
 if(UNIX AND NOT APPLE)
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(IMGUI REQUIRED imgui)
+    set(GS2_USE_IMGUI ON)
 
     add_library(platform_specific
         src/platform-specific/linux/menu.cpp
-        src/platform-specific/linux/imgui_impl_sdl3.cpp
-        src/platform-specific/linux/imgui_impl_sdlrenderer3.cpp
     )
 
     target_include_directories(platform_specific PRIVATE
-        ${IMGUI_INCLUDE_DIRS}
-        /usr/include/imgui/backends
+        src/imgui
     )
-    target_compile_options(platform_specific PRIVATE ${IMGUI_CFLAGS_OTHER})
     target_link_libraries(platform_specific PRIVATE
         SDL3::SDL3-shared
-        ${IMGUI_LIBRARIES}
+        gs2_imgui
     )
 endif()
 
@@ -456,6 +461,19 @@ if(WIN32)
     target_link_libraries(platform_specific PRIVATE
         SDL3::SDL3-shared
     )
+endif()
+
+if(GS2_USE_IMGUI)
+    add_library(gs2_imgui
+        src/imgui/imgui.cpp
+        src/imgui/imgui_draw.cpp
+        src/imgui/imgui_tables.cpp
+        src/imgui/imgui_widgets.cpp
+        src/imgui/backends/imgui_impl_sdl3.cpp
+        src/imgui/backends/imgui_impl_sdlrenderer3.cpp
+    )
+    target_include_directories(gs2_imgui PUBLIC src/imgui)
+    target_link_libraries(gs2_imgui PRIVATE SDL3::SDL3-shared)
 endif()
 
 ################################################################################

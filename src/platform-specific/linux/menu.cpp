@@ -3,14 +3,14 @@
 #include <SDL3/SDL.h>
 
 #include <imgui.h>
-#include <backends/imgui_impl_sdl3.h>
-#include <backends/imgui_impl_sdlrenderer3.h>
+#include "imgui/backends/imgui_impl_sdl3.h"
+#include "imgui/backends/imgui_impl_sdlrenderer3.h"
 
 #include "platform-specific/menu.h"
 #include "util/MenuInterface.h"
 #include "gs2.hpp"
 
-static constexpr float MENU_FONT_SIZE = 17.0f;
+static constexpr float MENU_FONT_SIZE = 20.0f;
 
 // ── Module state ──────────────────────────────────────────────────────────────
 
@@ -358,8 +358,7 @@ void renderMenuOverlay(SDL_Renderer *renderer, int /*win_w*/, int /*win_h*/)
     }
 
     ImGui::Render();
-    (void)renderer; // renderer was passed for future use; ImGui_ImplSDLRenderer3 uses the one from Init
-    ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData());
+    ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
 }
 
 #endif // __linux__
