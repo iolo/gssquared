@@ -26,6 +26,7 @@ constexpr uint16_t SCANNER_LUT_SIZE = 65*262;
 typedef enum {
     VM_TEXT40 = 0,
     VM_LORES,
+    VM_LORES_7M,
     VM_HIRES,
     VM_HIRES_NOSHIFT,
     VM_TEXT80,
@@ -37,7 +38,7 @@ typedef enum {
     VM_BORDER_COLOR,
     VM_VSYNC,
     VM_HSYNC,
-    VM_LAST_HBL
+    VM_LAST_HBL,
 } video_mode_t;
 
 #define VS_FL_ALTCHARSET 0x01

@@ -150,6 +150,7 @@ You need the following libraries installed:
 * libasound2-dev
 * libpulse-dev
 * libudev-dev
+* libimgui-dev
 
 ```
 git clone --recurse-submodules https://github.com/jawaidbazyar2/gssquared.git

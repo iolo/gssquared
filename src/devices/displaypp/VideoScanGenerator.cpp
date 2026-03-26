@@ -253,6 +253,27 @@ void VideoScanGenerator::generate_frame(ScanBuffer *frame_scan, Frame560 *frame_
                 }
                 hcount++;
                 break;
+            case VM_LORES_7M: {
+                    if (hcount == 0) {
+                        color_mode_t cmode = {1,0, 0};
+                        frame_byte->set_color_mode(vcount, cmode); // COLORBURST_ON);
+                    }
+                    uint8_t tchar = scan.mainbyte;
+                    
+                    if (vcount & 4) { // if we're in the second half of the scanline, shift the byte right 4 bits to get the other nibble
+                        tchar = tchar >> 4;
+                    }
+                    uint32_t pixeloff = (hcount * 14) % 4;
+    
+                    for (size_t bits = 0; bits < CELL_WIDTH/2; bits++) {
+                        uint8_t bit = ((tchar >> pixeloff) & 0x01);
+                        frame_byte->push(bit);
+                        frame_byte->push(bit);
+                        pixeloff = (pixeloff + 1) % 4;
+                    }
+                }
+                hcount++;
+                break;
             case VM_LORES: {
                     if (hcount == 0) {
                         color_mode_t cmode = {1,0, 0};

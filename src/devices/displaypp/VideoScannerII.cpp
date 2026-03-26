@@ -130,7 +130,7 @@ mode_table_t VideoScannerII::calc_video_mode_x(uint8_t xvmode)
                 if (xsw80col)
                     mt.mode = VM_DLORES;
                 else
-                    mt.mode = VM_LORES; // is there a "noshift" lores?
+                    mt.mode = VM_LORES_7M; // is there a "noshift" lores?
             }
             else {
                 mt.mode = VM_LORES;
@@ -144,7 +144,7 @@ mode_table_t VideoScannerII::calc_video_mode_x(uint8_t xvmode)
 
     if (mt.mode == VM_SHR) {
         mt.vaddr = shr_p1;
-    } else if (mt.mode == VM_TEXT40 || mt.mode == VM_TEXT80 || mt.mode == VM_LORES || mt.mode == VM_DLORES) { // text modes, page 1 and 2
+    } else if (mt.mode == VM_TEXT40 || mt.mode == VM_TEXT80 || mt.mode == VM_LORES || mt.mode == VM_DLORES || mt.mode == VM_LORES_7M) { // text modes, page 1 and 2
         if (xpage2 && !xf80store) {
             mt.vaddr = lores_p2;
         } else {

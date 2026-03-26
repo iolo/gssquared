@@ -538,6 +538,13 @@ void init_mb_game_controller(computer_t *computer, SlotType_t slot) {
         // might need to be longer for GS, since GS may take longer to get around to check buttons on reset.
         [ds,cpu]() {
             ds->joyport_activate = ds->clock->get_cycles() + 100000; // 100ms
+
+            // reset annunciators
+            ds->annunciators[3] = 0;
+            ds->annunciators[2] = 0;
+            ds->annunciators[1] = 0;
+            ds->annunciators[0] = 0;
+
             return true;
         });
 
