@@ -849,6 +849,8 @@ inline uint16_t address_direct_x (cpu_state *cpu, uint32_t index) {
         if (cpu->d & 0xFF) { // extra cycle taken if DP low is non-zero
             phantom_read_ign(cpu, make_pc_long(cpu, cpu->pc)); // cycle 2a - PhantomIgn: PC+1 (current PC)
         }
+
+        phantom_read_ign(cpu, make_pc_long(cpu, _PC(cpu))); // cycle 3
     }
     return eaddr_16;
 }
@@ -2000,6 +2002,17 @@ inline void stack_push(cpu_state *cpu, T &reg) {
         push_word(cpu, reg);
     }
 }
+
+/* 22h. Stack s - rts */
+#if 0
+inline void stack_rts(cpu_state *cpu) {
+    phantom_read_ign(cpu, make_pc_long(cpu, cpu->pc));
+    phantom_read_ign(cpu, make_pc_long(cpu, cpu->pc));
+
+    pop_word_new(cpu, cpu->pc);
+    stack_fix_new(cpu);
+}
+#endif
 
 /* 22i. Stack s - rtl */
 
@@ -3964,6 +3977,7 @@ int execute_next(cpu_state *cpu) override {
                     /*  */
                     // TODO: execute potential register width change.
                 }
+                phantom_read_ign(cpu, make_pc_long(cpu, cpu->pc)); // 2a
             } else if constexpr (CPUTraits::has_65c02_ops) {
                 invalid_nop(cpu, 2, 2);
             } else invalid_opcode(cpu, opcode);
@@ -3984,6 +3998,7 @@ int execute_next(cpu_state *cpu) override {
                         cpu->y_hi = 0;
                     }
                 }
+                phantom_read_ign(cpu, make_pc_long(cpu, cpu->pc)); // 2a
             } else if constexpr (CPUTraits::has_65c02_ops) {
                 invalid_nop(cpu, 2, 2);
             } else invalid_opcode(cpu, opcode);
@@ -4407,6 +4422,7 @@ int execute_next(cpu_state *cpu) override {
 
         case OP_INOP_0B: /* INOP 0B */ /* OP_PHD_S */
             if constexpr (CPUTraits::has_65816_ops) {
+                phantom_read_ign(cpu, make_pc_long(cpu, _PC(cpu))); // 2
                 push_word_new(cpu, cpu->d);
                 stack_fix_new(cpu);
             } else if constexpr (CPUTraits::has_65c02_ops) {
@@ -4429,7 +4445,9 @@ int execute_next(cpu_state *cpu) override {
 
         case OP_INOP_2B: /* INOP 2B */ /* OP_PLD_S */
             if constexpr (CPUTraits::has_65816_ops) {
-                pop_word_new(cpu, cpu->d);
+                phantom_read_ign(cpu, make_pc_long(cpu, _PC(cpu))); // 2
+                phantom_read_ign(cpu, make_pc_long(cpu, _PC(cpu))); // 3
+                pop_word_new(cpu, cpu->d); // 4,5
                 stack_fix_new(cpu);
                 set_n_z_flags(cpu, cpu->d);
             } else if constexpr (CPUTraits::has_65c02_ops) {
@@ -4545,6 +4563,7 @@ int execute_next(cpu_state *cpu) override {
                 cpu->a_lo = cpu->a_hi;
                 cpu->a_hi = tmp;
                 set_n_z_flags(cpu, cpu->a_lo);
+                phantom_read_ign(cpu, make_pc_long(cpu, _PC(cpu)));
                 phantom_read_ign(cpu, make_pc_long(cpu, _PC(cpu)));
             } else if constexpr (CPUTraits::has_65c02_ops) {
                 invalid_nop(cpu, 1, 1);
