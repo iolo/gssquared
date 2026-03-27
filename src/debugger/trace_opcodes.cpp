@@ -42,7 +42,7 @@ const address_mode_entry address_mode_formats[] = {
     { "($%02X,S),Y", 2}, // REL_S_Y
     { "$%04X", 3},       // REL_L
     { "[$%04X]", 3},       // ABS_IND_LONG
-    { "#$%04X", 2},       // IMM_S
+    { "$%04X", 3},       // IMM_S
     { "$%02X,$%02X", 3},       // MOVE
 };
 
