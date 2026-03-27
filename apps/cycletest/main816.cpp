@@ -48,6 +48,17 @@ void write_memory(cpu_state *cpu, uint16_t address, uint8_t value) {
     memory[address] = value;
 }; */
 
+
+constexpr int M1 = 0x20;
+constexpr int M0 = 0;
+constexpr int X1 = 0x10;
+constexpr int X0 = 0;
+
+constexpr int m8x8 = M1 | X1;
+constexpr int m8x16 = M1 | X0;
+constexpr int m16x8 = M0 | X1;
+constexpr int m16x16 = M0 | X0;
+
 struct instr {
     uint8_t op[3];
 };
@@ -59,11 +70,11 @@ struct test_record {
 
     uint64_t expected_cycles;
 
-    uint8_t a_in = 0;
-    uint8_t x_in = 0;
-    uint8_t y_in = 0;
-    uint8_t p_in = 0;
-
+    uint16_t a_in = 0;
+    uint16_t x_in = 0;
+    uint16_t y_in = 0;
+    uint16_t p_in = m8x8; // for 816 tests default to 8-bit regs
+    uint16_t dp_in = 0;
 };
 
 test_record test_records[] = {
@@ -71,10 +82,19 @@ test_record test_records[] = {
     // ADC
 
     {
-        "ADC #", 
+        "ADC # 8", 
         {0x69, 0},
-        2
+        2,
+        0, 0, 0, m8x8
     },
+
+    {
+        "ADC # 16", 
+        {0x69, 0, 0},
+        3,
+        0, 0, 0, m16x8
+    },
+
     {
         "ADC ZP", 
         {0x65, 0},
@@ -130,10 +150,17 @@ test_record test_records[] = {
     // AND
 
     {
-        "AND #IMM", 
+        "AND #IMM 8", 
         {0x29, 0},
         2
     },
+    {
+        "AND #IMM 16", 
+        {0x29, 0, 0},
+        3,
+        0, 0, 0, m16x8
+    },
+    
     {
         "AND ZP", 
         {0x25, 0},
@@ -295,6 +322,21 @@ test_record test_records[] = {
         4
     },
 
+
+    {
+        "BIT # 8", 
+        {0x89, 0},
+        2,
+        0, 0, 0, m8x8
+    },
+
+    {
+        "BIT # 16", 
+        {0x89, 0, 0},
+        3,
+        0, 0, 0, m16x8
+    },
+
     // BMI
     {
         "BMI No Branch", 
@@ -355,12 +397,17 @@ test_record test_records[] = {
         4,
         0, 0, 0, 0x00  // Clear negative flag (N=0)
     },
-
-    // BRK
+    {
+        "BRA",
+        {0x80, 0x70},
+        3,
+        0, 0, 0, 0x00
+    },
+    // BRK - native mode = 8 cycles
     {
         "BRK", 
         {0x00},
-        7
+        8
     },
 
     // BVC
@@ -438,90 +485,104 @@ test_record test_records[] = {
     // CMP
 
     {
-        "CMP #", 
+        "CMP # 8", 
         {0xC9, 0x42},  // CMP #$42
         2,
-        0x50, 0, 0, 0  // A=0x50 to test comparison with 0x42
+        0x50, 0, 0, m8x8  // A=0x50 to test comparison with 0x42
     },
+    {
+        "CMP # 16", 
+        {0xC9, 0x42, 0},  // CMP #$42
+        3,
+        0x50, 0, 0, m16x8  // A=0x50 to test comparison with 0x42
+    },
+
     {
         "CMP ZP", 
         {0xC5, 0x42},  // CMP $42
         3,
-        0x50, 0, 0, 0  // A=0x50 to test comparison with value at $42
+        0x50, 0, 0, m8x8  // A=0x50 to test comparison with value at $42
     },
     {
         "CMP ZP,X", 
         {0xD5, 0x40},  // CMP $40,X
         4,
-        0x50, 0x02, 0, 0  // A=0x50, X=0x02 to test comparison with value at $42
+        0x50, 0x02, 0, m8x8  // A=0x50, X=0x02 to test comparison with value at $42
     },
     {
         "CMP ABS", 
         {0xCD, 0x42, 0x00},  // CMP $0042
         4,
-        0x50, 0, 0, 0  // A=0x50 to test comparison with value at $0042
+        0x50, 0, 0, m8x8  // A=0x50 to test comparison with value at $0042
     },
     {
         "CMP ABS,X No Page Cross", 
         {0xDD, 0x40, 0x00},  // CMP $0040,X
         4,
-        0x50, 0x02, 0, 0  // A=0x50, X=0x02 to test comparison with value at $0042
+        0x50, 0x02, 0, m8x8  // A=0x50, X=0x02 to test comparison with value at $0042
     },
     {
         "CMP ABS,X Page Cross", 
         {0xDD, 0xFF, 0x00},  // CMP $00FF,X
         5,
-        0x50, 0x02, 0, 0  // A=0x50, X=0x02 to test comparison with value at $0101
+        0x50, 0x02, 0, m8x8  // A=0x50, X=0x02 to test comparison with value at $0101
     },
     {
         "CMP ABS,Y No Page Cross", 
         {0xD9, 0x40, 0x00},  // CMP $0040,Y
         4,
-        0x50, 0, 0x02, 0  // A=0x50, Y=0x02 to test comparison with value at $0042
+        0x50, 0, 0x02, m8x8  // A=0x50, Y=0x02 to test comparison with value at $0042
     },
     {
         "CMP ABS,Y Page Cross", 
         {0xD9, 0xFF, 0x00},  // CMP $00FF,Y
         5,
-        0x50, 0, 0x02, 0  // A=0x50, Y=0x02 to test comparison with value at $0101
+        0x50, 0, 0x02, m8x8  // A=0x50, Y=0x02 to test comparison with value at $0101
     },
     {
         "CMP (IND,X)", 
         {0xC1, 0x40},  // CMP ($40,X)
         6,
-        0x50, 0x02, 0, 0  // A=0x50, X=0x02 to test comparison with value at ($42)
+        0x50, 0x02, 0, m8x8  // A=0x50, X=0x02 to test comparison with value at ($42)
     },
     {
         "CMP (IND),Y No Page Cross", 
         {0xD1, 0x00},  // CMP ($00),Y
         5,
-        0x50, 0, 0xFF, 0  
+        0x50, 0, 0xFF, m8x8  
     },
     {
         "CMP (IND),Y Page Cross", 
         {0xD1, 0x02},  // CMP ($02),Y
         6,
-        0x50, 0, 0xFF, 0  
+        0x50, 0, 0xFF, m8x8  
     },
 
     // CPX tests
     {
-        "CPX #", 
+        "CPX # 8", 
         {0xE0, 0x42},  // CPX #$42
         2,
-        0, 0x50, 0, 0  // X=0x50 to test comparison with immediate value 0x42
+        0, 0x50, 0, m8x8  // X=0x50 to test comparison with immediate value 0x42
     },
+    {
+        "CPX # 16", 
+        {0xE0, 0x42, 0},  // CPX #$42
+        3,
+        0, 0x50, 0, m8x16  // X=0x50 to test comparison with immediate value 0x42
+    },
+
     {
         "CPX ZP", 
         {0xE4, 0x42},  // CPX $42
         3,
-        0, 0x50, 0, 0  // X=0x50 to test comparison with value at $42
+        0, 0x50, 0, m8x8  // X=0x50 to test comparison with value at $42
     },
     {
         "CPX ABS", 
         {0xEC, 0x42, 0x00},  // CPX $0042
         4,
-        0, 0x50, 0, 0  // X=0x50 to test comparison with value at $0042
+        0, 0x50, 0, m8x8  // X=0x50 to test comparison with value at $0042
     },
 
     // CPY tests
@@ -529,19 +590,19 @@ test_record test_records[] = {
         "CPY #", 
         {0xC0, 0x42},  // CPY #$42
         2,
-        0, 0, 0x50, 0  // Y=0x50 to test comparison with immediate value 0x42
+        0, 0, 0x50, m8x8  // Y=0x50 to test comparison with immediate value 0x42
     },
     {
         "CPY ZP", 
         {0xC4, 0x42},  // CPY $42
         3,
-        0, 0, 0x50, 0  // Y=0x50 to test comparison with value at $42
+        0, 0, 0x50, m8x8  // Y=0x50 to test comparison with value at $42
     },
     {
         "CPY ABS", 
         {0xCC, 0x42, 0x00},  // CPY $0042
         4,
-        0, 0, 0x50, 0  // Y=0x50 to test comparison with value at $0042
+        0, 0, 0x50, m8x8  // Y=0x50 to test comparison with value at $0042
     },
 
     // DEC tests
@@ -693,6 +754,11 @@ test_record test_records[] = {
         {0x6C, 0, 0},
         5
     },
+    {
+        "JMP (ABS,X)", 
+        {0x7C, 0, 0},
+        6
+    },
 
     // JSR
     {
@@ -842,31 +908,31 @@ test_record test_records[] = {
         "LSR A", 
         {0x4A},  // LSR A
         2,
-        0x80, 0, 0, 0  // A=0x80 to test shifting right (should become 0x40)
+        0x80, 0, 0, m8x8  // A=0x80 to test shifting right (should become 0x40)
     },
     {
         "LSR ZP", 
         {0x46, 0x42},  // LSR $42
         5,
-        0, 0, 0, 0  // Value at $42 will be 0x80 to test shifting right
+        0, 0, 0, m8x8  // Value at $42 will be 0x80 to test shifting right
     },
     {
         "LSR ZP,X", 
         {0x56, 0x40},  // LSR $40,X
         6,
-        0, 0x02, 0, 0  // X=0x02, value at $42 will be 0x80 to test shifting right
+        0, 0x02, 0, m8x8  // X=0x02, value at $42 will be 0x80 to test shifting right
     },
     {
         "LSR ABS", 
         {0x4E, 0x42, 0x00},  // LSR $0042
         6,
-        0, 0, 0, 0  // Value at $0042 will be 0x80 to test shifting right
+        0, 0, 0, m8x8  // Value at $0042 will be 0x80 to test shifting right
     },
     {
         "LSR ABS,X", 
         {0x5E, 0x40, 0x00},  // LSR $0040,X
         7,
-        0, 0x02, 0, 0  // X=0x02, value at $0042 will be 0x80 to test shifting right
+        0, 0x02, 0, m8x8  // X=0x02, value at $0042 will be 0x80 to test shifting right
     },
 
     // NOP
@@ -943,37 +1009,105 @@ test_record test_records[] = {
         0xFF
     },
 
+    // PEA
+    {
+        "PEA $ABS 16", 
+        {0xF4, 0, 0},  // PEA
+        5,
+        0x42, 0, 0, m16x8 
+    },
+
+    {
+        "PEI (DP) 16", 
+        {0xD4, 0},
+        6,
+        0x42, 0, 0, m16x8 
+    },
+    { 
+        "PEI (DP) 16 DP!=0", 
+        {0xD4, 0},
+        7,
+        0x42, 0, 0, m16x8, 0x1234
+    },
+
     // PHA
     {
         "PHA", 
         {0x48},  // PHA
         3,
-        0x42, 0, 0, 0  // A=0x42 to test pushing to stack
+        0x42, 0, 0, m8x8  // A=0x42 to test pushing to stack
     },
-
+    {
+        "PHD",
+        {0x0b},
+        4,
+        0, 0, 0, m16x8
+    },
+    {
+        "PLD",
+        {0x2b},
+        5,
+        0, 0, 0, m16x8
+    },
     {
         "PHP", 
         {0x08},  // PHP
         3,
         0, 0, 0, 0xFF  // All flags set to test pushing status register
     },
+    {
+        "PHX 8",
+        {0xDA},
+        3,
+        0, 0x42, 0, m8x8
+    },
+    {
+        "PHX 16",
+        {0xDA},
+        4,
+        0, 0x42, 0, m8x16
+    },
+    {
+        "PHY 8",
+        {0x5A},
+        3,
+        0, 0x42, 0, m8x8
+    },
+    {
+        "PHY 16",
+        {0x5A},
+        4,
+        0, 0x42, 0, m8x16
+    },
 
     {
         "PLA", 
         {0x68},  // PLA
         4,
-        0, 0, 0, 0  // Initial A value doesn't matter as we're pulling from stack
+        0, 0, 0, m8x8  // Initial A value doesn't matter as we're pulling from stack
     },
 
     {
         "PLP", 
         {0x28},  // PLP
         4,
-        0, 0, 0, 0  // Initial status doesn't matter as we're pulling from stack
+        0, 0, 0, m8x8  // Initial status doesn't matter as we're pulling from stack
     },
 
+    {
+        "REP",
+        {0xC2, 0x08},
+        3,
+        0, 0, 0, m8x8
+    },
+    {
+        "SEP",
+        {0xE2, 0x08},
+        3,
+        0, 0, 0, m8x8
+    },
+    
     // ROL
-
     {
         "ROL A", 
         {0x2A},  // ROL A
@@ -1032,7 +1166,7 @@ test_record test_records[] = {
     {
         "RTI", 
         {0x40},  // RTI
-        6,
+        7, // always 7 in native mode
         0, 0, 0, 0x00  // Initial status register value (will be pulled from stack)
     },
 
@@ -1048,67 +1182,67 @@ test_record test_records[] = {
         "SBC Immediate", 
         {0xE9, 0x42},  // SBC #$42
         2,
-        0x50, 0, 0, 0x01  // A=0x50, C=1 to test subtraction with borrow
+        0x50, 0, 0, 0x01|m8x8  // A=0x50, C=1 to test subtraction with borrow
     },
     {
         "SBC Zero Page", 
         {0xE5, 0x42},  // SBC $42
         3,
-        0x50, 0, 0, 0x01  // A=0x50, C=1 to test subtraction with borrow
+        0x50, 0, 0, 0x01|m8x8  // A=0x50, C=1 to test subtraction with borrow
     },
     {
         "SBC Zero Page,X", 
         {0xF5, 0x40},  // SBC $40,X
         4,
-        0x50, 0x02, 0, 0x01  // A=0x50, X=0x02, C=1 to test subtraction with borrow
+        0x50, 0x02, 0, 0x01|m8x8  // A=0x50, X=0x02, C=1 to test subtraction with borrow
     },
     {
         "SBC Absolute", 
         {0xED, 0x42, 0x00},  // SBC $0042
         4,
-        0x50, 0, 0, 0x01  // A=0x50, C=1 to test subtraction with borrow
+        0x50, 0, 0, 0x01|m8x8  // A=0x50, C=1 to test subtraction with borrow
     },
     {
         "SBC Absolute,X No Page Cross", 
         {0xFD, 0x40, 0x00},  // SBC $0040,X
         4,
-        0x50, 0x02, 0, 0x01  // A=0x50, X=0x02, C=1 to test subtraction with borrow
+        0x50, 0x02, 0, 0x01|m8x8  // A=0x50, X=0x02, C=1 to test subtraction with borrow
     },
     {
         "SBC Absolute,X Page Cross", 
         {0xFD, 0xFF, 0x00},  // SBC $00FF,X
         5,
-        0x50, 0x02, 0, 0x01  // A=0x50, X=0x02, C=1 to test subtraction with borrow
+        0x50, 0x02, 0, 0x01|m8x8  // A=0x50, X=0x02, C=1 to test subtraction with borrow
     },
     {
         "SBC Absolute,Y No Page Cross", 
         {0xF9, 0x40, 0x00},  // SBC $0040,Y
         4,
-        0x50, 0, 0x02, 0x01  // A=0x50, Y=0x02, C=1 to test subtraction with borrow
+        0x50, 0, 0x02, 0x01|m8x8  // A=0x50, Y=0x02, C=1 to test subtraction with borrow
     },
     {
         "SBC Absolute,Y Page Cross", 
         {0xF9, 0xFF, 0x00},  // SBC $00FF,Y
         5,
-        0x50, 0, 0x02, 0x01  // A=0x50, Y=0x02, C=1 to test subtraction with borrow
+        0x50, 0, 0x02, 0x01|m8x8  // A=0x50, Y=0x02, C=1 to test subtraction with borrow
     },
     {
         "SBC (Indirect,X)", 
         {0xE1, 0x40},  // SBC ($40,X)
         6,
-        0x50, 0x02, 0, 0x01  // A=0x50, X=0x02, C=1 to test subtraction with borrow
+        0x50, 0x02, 0, 0x01|m8x8  // A=0x50, X=0x02, C=1 to test subtraction with borrow
     },
     {
         "SBC (Indirect),Y No Page Cross", 
         {0xF1, 0x00},  // SBC ($00),Y
         5,
-        0x50, 0, 0xFF, 0x01  // A=0x50, Y=0xFF, C=1 to test subtraction with borrow
+        0x50, 0, 0xFF, 0x01|m8x8  // A=0x50, Y=0xFF, C=1 to test subtraction with borrow
     },
     {
         "SBC (Indirect),Y Page Cross", 
         {0xF1, 0x02},  // SBC ($02),Y
         6,
-        0x50, 0, 0xFF, 0x01  // A=0x50, Y=0xFF, C=1 to test subtraction with borrow
+        0x50, 0, 0xFF, 0x01|m8x8  // A=0x50, Y=0xFF, C=1 to test subtraction with borrow
     },
 
     // SEC
@@ -1140,63 +1274,82 @@ test_record test_records[] = {
         "STA Zero Page", 
         {0x85, 0x42},  // STA $42
         3,
-        0x50, 0, 0, 0  // A=0x50 to test storing
+        0x50, 0, 0, m8x8  // A=0x50 to test storing
     },
     {
         "STA Zero Page,X", 
         {0x95, 0x40},  // STA $40,X
         4,
-        0x50, 0x02, 0, 0  // A=0x50, X=0x02 to test storing at $42
+        0x50, 0x02, 0, m8x8  // A=0x50, X=0x02 to test storing at $42
     },
     {
         "STA Absolute", 
         {0x8D, 0x42, 0x00},  // STA $0042
         4,
-        0x50, 0, 0, 0  // A=0x50 to test storing
+        0x50, 0, 0, m8x8  // A=0x50 to test storing
     },
     {
         "STA Absolute,X", 
         {0x9D, 0x40, 0x00},  // STA $0040,X
         5,
-        0x50, 0x02, 0, 0  // A=0x50, X=0x02 to test storing at $0042
+        0x50, 0x02, 0, m8x8  // A=0x50, X=0x02 to test storing at $0042
     },
     {
         "STA Absolute,Y", 
         {0x99, 0x40, 0x00},  // STA $0040,Y
         5,
-        0x50, 0, 0x02, 0  // A=0x50, Y=0x02 to test storing at $0042
+        0x50, 0, 0x02, m8x8  // A=0x50, Y=0x02 to test storing at $0042
     },
     {
         "STA (Indirect,X)", 
         {0x81, 0x40},  // STA ($40,X)
         6,
-        0x50, 0x02, 0, 0  // A=0x50, X=0x02 to test storing at ($42)
+        0x50, 0x02, 0, m8x8  // A=0x50, X=0x02 to test storing at ($42)
     },
     {
         "STA (Indirect),Y", 
         {0x91, 0x00},  // STA ($00),Y
         6,
-        0x50, 0, 0xFF, 0  // A=0x50, Y=0xFF to test storing
+        0x50, 0, 0xFF, m8x8  // A=0x50, Y=0xFF to test storing
     },
 
     // STX tests
     {
-        "STX Zero Page", 
+        "STX Zero Page 8", 
         {0x86, 0x42},  // STX $42
         3,
-        0, 0x50, 0, 0  // X=0x50 to test storing
+        0, 0x50, 0, m8x8  // X=0x50 to test storing
     },
+    {
+        "STX ZP 8 DP!=0", 
+        {0x86, 0x42},  // STX $42
+        4,
+        0, 0x50, 0, m8x8, 0x1234  // X=0x50 to test storing
+    },
+    {
+        "STX ZP 16", 
+        {0x86, 0x42},  // STX $42
+        4,
+        0, 0x50, 0, m8x16  // X=0x50 to test storing
+    },
+    {
+        "STX ZP 16 DP!=0", 
+        {0x86, 0x42},  // STX $42
+        5,
+        0, 0x50, 0, m8x16, 0x1234  // X=0x50 to test storing
+    },
+
     {
         "STX Zero Page,Y", 
         {0x96, 0x40},  // STX $40,Y
         4,
-        0, 0x50, 0x02, 0  // X=0x50, Y=0x02 to test storing at $42
+        0, 0x50, 0x02, m8x8  // X=0x50, Y=0x02 to test storing at $42
     },
     {
         "STX Absolute", 
         {0x8E, 0x42, 0x00},  // STX $0042
         4,
-        0, 0x50, 0, 0  // X=0x50 to test storing
+        0, 0x50, 0, m8x8  // X=0x50 to test storing
     },
 
     // STY tests
@@ -1204,19 +1357,38 @@ test_record test_records[] = {
         "STY Zero Page", 
         {0x84, 0x42},  // STY $42
         3,
-        0, 0, 0x50, 0  // Y=0x50 to test storing
+        0, 0, 0x50, m8x8  // Y=0x50 to test storing
     },
     {
         "STY Zero Page,X", 
         {0x94, 0x40},  // STY $40,X
         4,
-        0, 0x02, 0x50, 0  // X=0x02, Y=0x50 to test storing at $42
+        0, 0x02, 0x50, m8x8  // X=0x02, Y=0x50 to test storing at $42
     },
     {
         "STY Absolute", 
         {0x8C, 0x42, 0x00},  // STY $0042
         4,
-        0, 0, 0x50, 0  // Y=0x50 to test storing
+        0, 0, 0x50, m8x8 
+    },
+
+    {
+        "STZ ZP",
+        {0x64, 0x42},
+        3,
+        0, 0, 0x50, m8x8 
+    },
+    {
+        "STZ ZP 16",
+        {0x64, 0x42},
+        4,
+        0, 0, 0x50, m16x8
+    },
+    {
+        "STZ ZP DP!=0",
+        {0x64, 0x42},
+        4,
+        0, 0, 0x50, m8x8, 0x1234
     },
 
     // TAX
@@ -1224,7 +1396,7 @@ test_record test_records[] = {
         "TAX", 
         {0xAA},  // TAX
         2,
-        0x42, 0, 0, 0  // A=0x42 to test transfer to X
+        0x42, 0, 0, m8x8  // A=0x42 to test transfer to X
     },
 
     // TAY
@@ -1232,15 +1404,63 @@ test_record test_records[] = {
         "TAY", 
         {0xA8},  // TAY
         2,
-        0x42, 0, 0, 0  // A=0x42 to test transfer to Y
+        0x42, 0, 0, m8x8  // A=0x42 to test transfer to Y
     },
 
+    { 
+        "TCS",
+        {0x1B},
+        2,
+        0x1234, 0, 0, m16x8
+    },
+    {
+        "TSB DP",
+        {0x04, 0x10},
+        5,
+        0, 0, 0, m8x8,
+    },
+    {
+        "TSB DP DP!=0",
+        {0x04, 0x10},
+        6,
+        0, 0, 0, m8x8, 0x1234,
+    },
+    {
+        "TSB DP 16",
+        {0x04, 0x10},
+        7,
+        0, 0, 0, m16x8,
+    },
+    {
+        "TSB DP 16 DP!=0",
+        {0x04, 0x10},
+        8,
+        0, 0, 0, m16x8, 0x1234,
+    },
+    {
+        "TSB ABS",
+        {0x0C, 0x10, 0x10},
+        6,
+        0, 0, 0, m8x8,
+    },
+    {
+        "TSB ABS 16",
+        {0x0C, 0x10, 0x10},
+        8,
+        0, 0, 0, m16x8,
+    },
+    {
+        "TSB ABS 16 DP!=0",
+        {0x0C, 0x10, 0x10},
+        8,
+        0, 0, 0, m16x8, 0x1234,
+    },
     // TSX
     {
         "TSX", 
         {0xBA},  // TSX
         2,
-        0, 0, 0, 0  // Initial A value doesn't matter as we're transferring from SP
+        0, 0, 0, m8x8  // Initial A value doesn't matter as we're transferring from SP
     },
 
     // TXA
@@ -1248,7 +1468,7 @@ test_record test_records[] = {
         "TXA", 
         {0x8A},  // TXA
         2,
-        0, 0x42, 0, 0  // X=0x42 to test transfer to A
+        0, 0x42, 0, m8x8  // X=0x42 to test transfer to A
     },
 
     // TXS
@@ -1256,7 +1476,7 @@ test_record test_records[] = {
         "TXS", 
         {0x9A},  // TXS
         2,
-        0, 0x42, 0, 0  // X=0x42 to test transfer to SP
+        0, 0x42, 0, m8x8  // X=0x42 to test transfer to SP
     },
 
     // TYA
@@ -1264,12 +1484,20 @@ test_record test_records[] = {
         "TYA", 
         {0x98},  // TYA
         2,
-        0, 0, 0x42, 0  // Y=0x42 to test transfer to A
+        0, 0, 0x42, m8x8  // Y=0x42 to test transfer to A
     },
 
+    {
+        "XBA",
+        {0xEB},
+        3,
+        0, 0, 0, m8x8  // X=0x42 to test transfer to A
+    }
 };
 
 int test_records_count = sizeof(test_records) / sizeof(test_records[0]);
+
+
 
 bool test_instruction(std::unique_ptr<BaseCPU> &cpux, cpu_state *cpu, test_record *testrec, NClock *clock) {
     uint64_t start_cycles = clock->get_cycles();
@@ -1292,7 +1520,7 @@ bool test_instruction(std::unique_ptr<BaseCPU> &cpux, cpu_state *cpu, test_recor
 
 int main(int argc, char **argv) {
     bool trace_on = true;
-    processor_type cputype = PROCESSOR_6502;
+    processor_type cputype = PROCESSOR_65816;
 
 
     for (int i = 1; i < argc; i++) {
@@ -1336,7 +1564,7 @@ int main(int argc, char **argv) {
 
 
 // create MMU, map all pages to our "ram"
-    MMU *mmu = new MMU(256, GS2_PAGE_SIZE);
+    MMU *mmu = new MMU(256, 0x10000); // 16M for testing 816
     for (int i = 0; i < 256; i++) {
         mmu->map_page_both(i, &memory[i*256], "TEST RAM");
     }
@@ -1366,11 +1594,14 @@ int main(int argc, char **argv) {
         mmu->write(0x0001, 0x00);
         
         //cpu->cycles = 0;
+        cpu->E = 0;
         cpu->pc = 0x1000;
+        cpu->pb = 0x00;
         cpu->a = test_records[i].a_in;
         cpu->x = test_records[i].x_in;
         cpu->y = test_records[i].y_in;
         cpu->p = test_records[i].p_in;
+        cpu->d = test_records[i].dp_in;
         mmu->write(0x1000, test_records[i].operation.op[0]);
         mmu->write(0x1001, test_records[i].operation.op[1]);
         mmu->write(0x1002, test_records[i].operation.op[2]);
