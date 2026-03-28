@@ -1252,6 +1252,7 @@ DebugFormatter *display_debug(display_state_t *ds) {
     bool is_hbl = ds->video_scanner->is_hbl();
     bool is_vbl = ds->video_scanner->is_vbl();
     df->addLine(" Beam position: H %3d V %3d Is_HBL %d Is_VBL %d", hcount, vcount, is_hbl, is_vbl);
+    df->addLine(" Hcounter: %03X Vcounter: %03X", ds->video_scanner->get_hcounter(), ds->video_scanner->get_vcounter());
     df->addLine(" INTEN C041: %02X VGCINT C023: %02X INTFLAG C046: %02X", ds->f_INTEN, ds->f_VGCINT, ds->f_INTFLAG);
     df->addLine("    sl en: %d as: %d - 1sec en: %d as: %d", ds->f_scanline_enable, ds->f_scanline_asserted, ds->f_onesec_enable, ds->f_onesec_asserted);
     return df;
