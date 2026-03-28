@@ -39,7 +39,6 @@ void StatusMessage_t::render() {
         int opacity = headsUpMessageCount < 255 ? headsUpMessageCount : 255;
         ctx->text_render->set_color(0xFF, 0xFF, 0xFF, opacity);
         ctx->text_render->render(headsUpMessageText, msg_x, 30, TEXT_ALIGN_CENTER);
-
     }
     SDL_SetRenderScale(ctx->renderer, ox,oy);
     
