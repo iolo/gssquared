@@ -570,6 +570,7 @@ void bank_shadow_write(void *context, uint32_t address, uint8_t value) {
     // if IOLC is "shadowed" and it's an I/O location, send write down to Megaii.
     if ( (mmu_iigs->is_iolc_shadowed()) && (page >= 0xC0 && page <= 0xCF) ) {
         //mmu_iigs->megaiiWrite(address & 0x1'FFFF, value);
+        mmu_iigs->set_next_cycle_type(CYCLE_TYPE_SYNC);
         mmu_iigs->megaii->write(address & 0xFFFF, value);
         return; // we delegated this to the MegaII
     }

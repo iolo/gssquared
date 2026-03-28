@@ -130,7 +130,10 @@ class MMU_IIgs : public MMU {
         inline void megaiiWrite(uint32_t address, uint8_t value) { 
             if ((address & 0x1'0000) && g_bank_latch)
                 megaii->get_memory_base()[address & 0x1'FFFF] = value; 
-            else megaii->write(address & 0xFFFF, value);
+            else {
+                megaii->write(address & 0xFFFF, value);
+            }
+            set_next_cycle_type(CYCLE_TYPE_SYNC);
         }
 
         void megaii_compose_map();
