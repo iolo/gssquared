@@ -88,7 +88,11 @@ static void /* SDLCALL */ file_dialog_callback(void* userdata, const char* const
     dm.filename = strndup(filelist[0], 1024);
     dm.slot = data->key.slot;
     dm.drive = data->key.drive;   
-    osd->computer->mounts->mount_media(dm);
+    bool result = osd->computer->mounts->mount_media(dm);
+    if (!result) {
+        osd->set_heads_up_message("Failed to mount media", 512);
+    }
+
 }
 
 /** Wrapper used when userdata was heap-allocated: delegates then frees. */
