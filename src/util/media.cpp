@@ -324,7 +324,7 @@ int identify_media(media_descriptor& md) {
         md.write_protected = md.write_protected || (hdr.flag & FLAG_LOCKED) != 0;
         md.dos33_volume = (hdr.flag & FLAG_DOS33) != 0 ? (hdr.flag & FLAG_DOS33_VOL_MASK) : 254; // if not set, then 254
 
-    } else if (compare_suffix(md.filename, ".hdv")) {
+    } else if ((compare_suffix(md.filename, ".hdv")) || (compare_suffix(md.filename, ".img"))) {
         md.media_type = MEDIA_BLK;
         // get size of file on disk
         md.file_size = get_file_size(md.filename);
