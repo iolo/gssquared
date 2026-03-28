@@ -207,10 +207,24 @@ public:
         if (clock_mode == CLOCK_FREE_RUN) cycles++;
         else slow_incr_cycles();
     }
+
+    virtual DebugFormatter *debug() {
+        DebugFormatter *f = new DebugFormatter();
+        f->addLine("Clock Mode: %s", get_clock_mode_name());
+        //f->addLine("CPU Slow Mode: %d", get_slow_mode());
+        f->addLine("CPU Expected Rate: %d", get_hz_rate());
+        f->addLine("CPU Cycle: %12llu", get_cycles());
+        f->addLine("Vid Cycle: %12llu", get_vid_cycles());
+        f->addLine("14M Cycle: %12llu", get_c14m());
+        return f;
+    }
 };
 
 class NClockII : public NClock {
-    public:
+protected:
+    bool slow_mode = false;
+
+public:
     NClockII(clock_set_t clock_set = CLOCK_SET_US, clock_mode_t clock_mode = CLOCK_1_024MHZ) : NClock(clock_set, clock_mode) {
         clock_mode = CLOCK_1_024MHZ;
     }
@@ -235,6 +249,18 @@ class NClockII : public NClock {
             }
         }
     }
+
+    inline void set_slow_mode(bool value) { slow_mode = value; }
+    inline bool get_slow_mode() { return slow_mode; }
+
+
+    virtual DebugFormatter *debug() override {
+        DebugFormatter *f = NClock::debug();
+        f->addLine("CPU Slow Mode: %d", get_slow_mode());
+
+        return f;
+    }
+
 };
 
 class NClockIIgs : public NClockII {
@@ -242,7 +268,6 @@ protected:
     uint64_t ram_refresh_cycles = 0;
     uint64_t vidlinecycles = 0;
     uint64_t video_c14m = 0;
-    bool slow_mode = false;
 
     public:
     NClockIIgs(clock_set_t clock_set = CLOCK_SET_US, clock_mode_t clock_mode = CLOCK_2_8MHZ) : NClockII(clock_set, clock_mode) {
@@ -254,10 +279,8 @@ protected:
     /* set the next cycle type. This is called by the MMU when it knows what kind of cycle it's doing. */
     inline void set_next_cycle_type(cycle_type_t type) { cycle_type = type; }
 
-    inline void set_slow_mode(bool value) { slow_mode = value; }
-
     // IIgs
-    inline void slow_incr_cycles()  {
+    inline void slow_incr_cycles() override {
         cycles++; 
         if (slow_mode) cycle_type = CYCLE_TYPE_SYNC;
         if (current.hz_rate == 1020484) cycle_type = CYCLE_TYPE_SYNC; // also get refresh for "free" here.
@@ -267,21 +290,25 @@ protected:
     
             c14m_this_cycle = 14;                                   // if PH2 start lines up with PH0 start.. 
             if (video_cycle_14M_count) c14m_this_cycle += (14 - video_cycle_14M_count); // otherwise wait until end of next PH0, then 14 more C14s.
-            ram_refresh_cycles = 0;                                 // our refresh needs are satisfied for a bit.
-    
+            //ram_refresh_cycles = 0;                                 // our refresh needs are satisfied for a bit.
+            ram_refresh_cycles += c14m_this_cycle;
+            if (ram_refresh_cycles >= 50) {
+                ram_refresh_cycles -= 50;
+            }
         } else if (cycle_type == CYCLE_TYPE_FAST_ROM) {
     
             c14m_this_cycle = current.c_14M_per_cpu_cycle;
-            ram_refresh_cycles = 0;
-            //ram_refresh_cycles ++;
-            //if (ram_refresh_cycles == 9)  ram_refresh_cycles = 0;   // fast ROM cycle - free refresh, no extra 14Ms.        
-    
+            //ram_refresh_cycles = 0;
+            ram_refresh_cycles += c14m_this_cycle;
+            if (ram_refresh_cycles >= 50) {
+                ram_refresh_cycles -= 50;
+            }
         } else {  // regular "fast" cycle
             
             c14m_this_cycle = current.c_14M_per_cpu_cycle;
-            ram_refresh_cycles += current.c_14M_per_cpu_cycle;
-            if (ram_refresh_cycles >= 45) {
-                ram_refresh_cycles -= 45;
+            ram_refresh_cycles += c14m_this_cycle;
+            if (ram_refresh_cycles >= 50) {
+                ram_refresh_cycles -= 50;
                 c14m_this_cycle += 5; // a refresh cycle is 10 14M's long total.
             } 
         } 
@@ -319,6 +346,11 @@ protected:
         cycle_type = CYCLE_TYPE_FAST; // reset here so MMU doesn't have to set for all possible addresses
     }
 
+    virtual DebugFormatter *debug() override {
+        DebugFormatter *f = NClockII::debug();
+        f->addLine("RAM Refresh Cntr: %12llu", ram_refresh_cycles);
+        return f;
+    }
 };
 
 class NClockFactory {

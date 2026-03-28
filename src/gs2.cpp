@@ -205,9 +205,11 @@ void frame_sleep(computer_t *computer, uint64_t last_cycle_time, uint64_t ns_per
     }
 }
 
-
+#if 0
 DebugFormatter *debug_clock(computer_t *computer) {
     DebugFormatter *f = new DebugFormatter();
+    f->addLine("Clock Mode: %s", computer->clock->get_clock_mode_name(computer->clock->get_clock_mode()));
+    f->addLine("CPU Slow Mode: %d", computer->clock->get_slow_mode());
     f->addLine("CPU Expected Rate: %d", computer->clock->get_hz_rate());
     f->addLine("CPU eMHZ: %12.8f, FPS: %12.8f", computer->e_mhz, computer->fps);
     f->addLine("CPU Cycle: %12llu", computer->clock->get_cycles());
@@ -216,6 +218,7 @@ DebugFormatter *debug_clock(computer_t *computer) {
 
     return f;
 }
+#endif
 
 void register_clock_debug(computer_t *computer) {
 
@@ -223,7 +226,7 @@ void register_clock_debug(computer_t *computer) {
         "clock",
         DH_CLOCK, // unique ID for this, need to have in a header.
         [computer]() -> DebugFormatter * {
-            return debug_clock(computer);
+            return computer->clock->debug();
         }
     );
 
