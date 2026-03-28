@@ -98,7 +98,7 @@ Additional notes: 5.25 Floppy does not support quarter or half tracks.
 |--------|--------|------|-------|
 | .do, .dsk | ✅ Read/write | 143K | |
 | .po | ✅ Read/write | 143K | |
-| .hdv | ✅ Read/write | Any size | Block device, complete |
+| .hdv, .img | ✅ Read/write | Any size | Block device, complete |
 | .2mg | ✅ Read/write | Various | For block devices, complete |
 | .nib | ✅ Read/write | 143K | |
 | .woz | Not started | | |

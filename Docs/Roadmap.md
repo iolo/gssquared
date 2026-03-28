@@ -60,6 +60,11 @@
 [x] Add Menus on Mac/Windows
 [x] Add Help menu  
 
+## Release 0.7.3
+
+[ ] IWM 3.5  
+[ ] True "hard drive" Control Panel for editing mounts on the SmartPort device.
+
 ## Release 0.8
 
 Primary Focus: UI
@@ -67,7 +72,6 @@ Primary Focus: UI
 [ ] Can make custom hw config. (Click "+ Custom").
 [ ] when we go to power off (from inside OSD), check to see if disks need writing, and throw up appropriate dialogs.  
 [ ] Add buttons for step/run in the debugger
-[ ] IWM 3.5
 [ ] Refactor MB to use new synth, and pass Shuttleworth tests  
 
 ## Release 0.9

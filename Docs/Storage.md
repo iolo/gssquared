@@ -8,7 +8,7 @@ GS2 supports the following virtual disk media formats:
 | .dsk | 140K | DOS33 ordered |
 | .nib | 140K | Nibblized 5.25" |
 | .2mg | 140K, 800K | 5.25 and 3.5 |
-| .hdv | 32M | Can be any size, raw block device |
+| .hdv, .img | any | Can be any size, raw block device |
 
 ## Mounting disks
 

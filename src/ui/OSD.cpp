@@ -103,7 +103,7 @@ static void menu_file_dialog_callback(void* userdata, const char* const* filelis
 
 void OSD::open_file_dialog(storage_key_t key) {
     static const SDL_DialogFileFilter filters[] = {
-        { "Disk Images",  "do;po;woz;dsk;hdv;2mg" },
+        { "Disk Images",  "do;po;woz;dsk;hdv;2mg;img" },
         { "All files",   "*" }
     };
 
@@ -150,7 +150,7 @@ void unidisk_button_click(void *userdata) {
     }
     
     static const SDL_DialogFileFilter filters[] = {
-        { "Disk Images",  "po;dsk;hdv;2mg" },
+        { "Disk Images",  "po;dsk;hdv;2mg;img" },
         { "All files",   "*" }
     };
 
