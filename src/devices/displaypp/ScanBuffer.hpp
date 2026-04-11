@@ -18,4 +18,6 @@ public:
     inline Scan_t peek() const noexcept { return buffer[read_pos];};
     inline uint32_t get_count() const noexcept { return (write_pos - read_pos) & BUFFER_MASK; };
     inline void clear() noexcept { write_pos = 0; read_pos = 0; };
+    inline Scan_t get(uint32_t index) const noexcept { return buffer[(read_pos + index) & BUFFER_MASK]; };
+    void saveToFile(const char *filename);
 };
