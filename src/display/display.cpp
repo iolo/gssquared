@@ -33,6 +33,9 @@
 #include "videosystem.hpp"
 #include "devices/displaypp/CharRom.hpp"
 #include "devices/displaypp/VideoScanGenerator.hpp"
+#include "devices/displaypp/VideoScanGenerator_Intf.hpp"
+#include "devices/displaypp/VideoScanGenerator_RGB.hpp"
+#include "devices/displaypp/VideoScanGenerator_Comp.hpp"
 #include "mbus/MessageBus.hpp"
 #include "mbus/KeyboardMessage.hpp"
 #include "util/EventTimer.hpp"
@@ -175,14 +178,33 @@ display_page_t display_pages[NUM_DISPLAY_PAGES] = {
     },
 };
 
+/*
+Index by scanner
+*/
+constexpr SDL_FRect content_rec_vsg2[4][2] = {
+    //{ { 84.0, 12.0, 560+168, 240.0 }, { 0.0, 0.0,0.0,0.0 } }, // no shr here
+    //{ { 168.0, 34.0, 560, 192.0 }, { 0.0, 0.0,0.0,0.0 } }, // this is exactly our bounding box.
+    
+    // II / II+
+    { { 168.0-42, 35.0-19, 560+42+42, 192.0+19+21 }, { 0.0, 0.0,0.0,0.0 } },
+    
+    // IIe - is slightly (7 pixels) wider.
+    { { 168.0-42, 35.0-19, 560+42+42, 192.0+19+21 }, { 0.0, 0.0,0.0,0.0 } },
+    //{ { 168.0-42-7, 34.0-20, 560+42+42, 192.0+20+20 }, { 0.0, 0.0,0.0,0.0 } },  // use something like this later for composite vsg
 
+    // IIePAL - is slightly (7 pixels) wider.
+    { { 168.0-42, 35.0-19, 560+42+42, 192.0+19+21 }, { 0.0, 0.0,0.0,0.0 } },
+
+    // IIgs            
+    // { { 0.0, 0.0, 910, 263.0 }, { 0.0, 2.0, 1040, 263.0 } }, // entire content area
+    { { 168.0-42, 35.0-19, 560+42+42, 192.0+19+29 }, { 192.0-48.0, 35.0-19.0, 640.0+48+48, 200+19+21.0 } },
+};
 
 /*
 border texture is laid out based on the hc/vc positions. i.e
    0-6: right border
    7-12: left border
    13-52: top/bottom border center content
-
 */ 
 void calculate_border_rects(display_state_t *ds, bool shift_enabled) {
     float shift_offset = shift_enabled ? 7.0f : 0.0f;
@@ -196,65 +218,65 @@ void calculate_border_rects(display_state_t *ds, bool shift_enabled) {
 
     border_rect_array_t &ii_borders = ds->ii_borders;
     // top
-    ii_borders[B_TOP][B_LT].src = {b_l_x, 243.0, b_l_w, 19};
+    ii_borders[B_TOP][B_LT].src = {b_l_x, 244.0, b_l_w, 19};
     ii_borders[B_TOP][B_LT].dst = {0.0, 0.0, 42.0, 19};
 
-    ii_borders[B_TOP][B_CEN].src = {13, 243.0, 40, 19};
+    ii_borders[B_TOP][B_CEN].src = {13, 244.0, 40, 19};
     ii_borders[B_TOP][B_CEN].dst = {42, 0.0, 560, 19};
 
-    ii_borders[B_TOP][B_RT].src = {0, 243.0, b_r_w, 19};
+    ii_borders[B_TOP][B_RT].src = {0, 244.0, b_r_w, 19};
     ii_borders[B_TOP][B_RT].dst = {42.0f+560.0f-shift_offset, 0.0, 49.0, 19};
 
     // center
-    ii_borders[B_CEN][B_LT].src = {b_l_x, 0.0, b_l_w, 192};
+    ii_borders[B_CEN][B_LT].src = {b_l_x, 1.0, b_l_w, 192};
     ii_borders[B_CEN][B_LT].dst = {0, 19.0, 42.0, 192};
 
     ii_borders[B_CEN][B_CEN].src = {0.0, 0.0, width, (float)192}; // not from border texture
     ii_borders[B_CEN][B_CEN].dst = {42.0f-shift_offset, 19.0, width, 192}; // not from border texture
 
-    ii_borders[B_CEN][B_RT].src = {0.0, 0.0, b_r_w, 192};
+    ii_borders[B_CEN][B_RT].src = {0.0, 1.0, b_r_w, 192};
     ii_borders[B_CEN][B_RT].dst = {42.0f+560.0f-shift_offset, 19.0, 49.0, 192};
 
     // bottom
-    ii_borders[B_BOT][B_LT].src = {b_l_x, 192.0, b_l_w, 21};
+    ii_borders[B_BOT][B_LT].src = {b_l_x, 193.0, b_l_w, 21};
     ii_borders[B_BOT][B_LT].dst = {0.0, 19+192, 42.0, 21};
 
-    ii_borders[B_BOT][B_CEN].src = {13.0, 192.0, 40, 21};
+    ii_borders[B_BOT][B_CEN].src = {13.0, 193.0, 40, 21};
     ii_borders[B_BOT][B_CEN].dst = {42, 19+192, 560, 21};
 
-    ii_borders[B_BOT][B_RT].src = {0, 192.0, b_r_w, 21};
+    ii_borders[B_BOT][B_RT].src = {0, 193.0, b_r_w, 21};
     ii_borders[B_BOT][B_RT].dst = {42.0f+560.0f-shift_offset, 19+192, 49.0, 21};
 
     // SHR mode - in shr mode one cycle = 8 pixels. So we have to scale the borders out accordingly.
     border_rect_array_t &shr_borders = ds->shr_borders;
     // top
-    shr_borders[B_TOP][B_LT].src = {b_l_x, 243.0, b_l_w, 19};
+    shr_borders[B_TOP][B_LT].src = {b_l_x, 244.0, b_l_w, 19};
     shr_borders[B_TOP][B_LT].dst = {0.0, 0.0, 48.0, 19};
 
-    shr_borders[B_TOP][B_CEN].src = {13, 243.0, 40, 19};
+    shr_borders[B_TOP][B_CEN].src = {13, 244.0, 40, 19};
     shr_borders[B_TOP][B_CEN].dst = {48, 0.0, 640, 19};
 
-    shr_borders[B_TOP][B_RT].src = {0, 243.0, b_r_w, 19};
+    shr_borders[B_TOP][B_RT].src = {0, 244.0, b_r_w, 19};
     shr_borders[B_TOP][B_RT].dst = {48.0f+640.0f, 0.0, 56.0, 19};
     
     // center
     shr_borders[B_CEN][B_LT].src = {0.0, 0.0, b_l_w, 192};
-    shr_borders[B_CEN][B_LT].dst = {0.0, 19.0, 48.0, 200};
+    shr_borders[B_CEN][B_LT].dst = {0.0, 19.0, 48.0, 192};
 
     shr_borders[B_CEN][B_CEN].src = {0.0f, 0.0f, 640.0f, 200.0f};
     shr_borders[B_CEN][B_CEN].dst = {48.0f, 19.0f, 640.0f, 200.0f};
 
-    shr_borders[B_CEN][B_RT].src = {0.0, 0.0, b_r_w, 192};
-    shr_borders[B_CEN][B_RT].dst = {48+640, 19.0, 56.0, 200}; 
+    shr_borders[B_CEN][B_RT].src = {0.0, 0.0, b_r_w, 192}; 
+    shr_borders[B_CEN][B_RT].dst = {48+640, 19.0, 56.0, 192}; 
 
     // bottom
-    shr_borders[B_BOT][B_LT].src = {b_l_x, 192.0, b_l_w, 21};
+    shr_borders[B_BOT][B_LT].src = {b_l_x, 193.0, b_l_w, 21};
     shr_borders[B_BOT][B_LT].dst = {0.0, 19+192, 48.0, 21};
 
-    shr_borders[B_BOT][B_CEN].src = {13.0, 192.0, 40, 21};
+    shr_borders[B_BOT][B_CEN].src = {13.0, 193.0, 40, 21};
     shr_borders[B_BOT][B_CEN].dst = {48, 19+192, 640, 21};
 
-    shr_borders[B_BOT][B_RT].src = {0, 192.0, b_r_w, 21};
+    shr_borders[B_BOT][B_RT].src = {0, 193.0, b_r_w, 21};
     shr_borders[B_BOT][B_RT].dst = {48.0f+640.0f, 19+192, 56.0, 21};   
 }
 
@@ -286,6 +308,7 @@ void set_display_page2(display_state_t *ds) {
  * With an optimization only update dirty lines.
  */
 bool update_display_apple2(display_state_t *ds) {
+#if 0
     video_system_t *vs = ds->video_system;
 
     // first push flash state into AppleII_Display
@@ -409,18 +432,22 @@ bool update_display_apple2(display_state_t *ds) {
     vs->force_full_frame_redraw = false;
 
     return true;
+#endif
 }
 
 
 bool update_display_apple2_cycle(display_state_t *ds) {
     video_system_t *vs = ds->video_system;
 
-    ScanBuffer *frame_scan = ds->video_scanner->get_frame_scan();
-    ds->vsg->generate_frame(frame_scan, ds->frame_bits);
+    ScanBuffer *scanbuf = ds->video_scanner->get_frame_scan();
+
+#if 0
+    ds->vsg->generate_frame(frame_scan/* , ds->frame_bits */);
     ds->frame_rgba->open();
     switch (vs->display_color_engine) {
         case DM_ENGINE_MONO:
-            ds->mon_mono.render(ds->frame_bits, ds->frame_rgba, vs->get_mono_color());
+            ds->mon_mono.set_mono_color(vs->get_mono_color());
+            ds->mon_mono.render(ds->frame_bits, ds->frame_rgba);
             break;
         case DM_ENGINE_NTSC:
             ds->mon_ntsc.render(ds->frame_bits, ds->frame_rgba, RGBA_t::make(0xFF, 0xFF, 0xFF, 0xFF)  /* , 1 */);
@@ -432,23 +459,38 @@ bool update_display_apple2_cycle(display_state_t *ds) {
             break;
     }
     ds->frame_rgba->close();
+#endif
+    ds->frame_vsg->open();
+    ds->vsg->generate_frame(scanbuf);
+    ds->frame_vsg->close();
+
+    ds->ii_frame_src = content_rec_vsg2[ds->video_scanner_type][(ds->new_video & 0x80) ? 1 : 0];
+    ds->ii_frame_src.x += (float)ds->hpos-ds->hsize;
+    ds->ii_frame_src.y += (float)ds->vpos-ds->vsize;
+    ds->ii_frame_src.w += (float)ds->hsize*2;
+    ds->ii_frame_src.h += (float)ds->vsize*2;
 
     // render screenTexture to stage2
     // this is double copying, but is the same process as the GS display code, and makes screen capture work. Adds about 10uS to display_time.
-    SDL_SetRenderTarget(vs->renderer, ds->stage2);
-    SDL_RenderTexture(vs->renderer, ds->screenTexture, &ds->ii_borders[B_CEN][B_CEN].src, &ds->ii_borders[B_CEN][B_CEN].src);
-    SDL_SetRenderTarget(vs->renderer, nullptr);
+    //SDL_SetRenderTarget(vs->renderer, ds->stage2);
+    if (!SDL_RenderTexture(vs->renderer, ds->frame_vsg->get_texture(), &ds->ii_frame_src, nullptr)) {
+        printf("Failed to render stage2 texture: %s\n", SDL_GetError());
+    }
+    ////SDL_RenderTexture(vs->renderer, ds->screenTexture, &ds->ii_borders[B_CEN][B_CEN].src, &ds->ii_borders[B_CEN][B_CEN].src);
+    //SDL_SetRenderTarget(vs->renderer, nullptr);
 
     // now render stage2.
-    vs->render_frame(ds->stage2, 
+    /* vs->render_frame(ds->stage2, 
         &ds->ii_borders[B_CEN][B_CEN].src, 
         &ds->ii_borders[B_CEN][B_CEN].dst
-    );
+    ); */
 
     return true;
 }
 
+#if 0
 bool update_display_apple2gs_cycle(display_state_t *ds) {
+
     video_system_t *vs = ds->video_system;
 
     ScanBuffer *frame_scan = ds->video_scanner->get_frame_scan();
@@ -511,6 +553,7 @@ bool update_display_apple2gs_cycle(display_state_t *ds) {
 
     return true;
 }
+#endif
 
 void force_display_update(display_state_t *ds) {
     for (int y = 0; y < 24; y++) {
@@ -754,8 +797,8 @@ display_state_t::~display_state_t() {
     delete[] buffer;
     delete vsg;
     delete a2_display;
-    delete frame_rgba;
-    delete frame_bits;
+    /* delete frame_rgba;
+    delete frame_bits; */
     delete video_scanner;
     delete char_rom;
 }
@@ -795,6 +838,10 @@ bool handle_display_event(display_state_t *ds, const SDL_Event &event) {
             display_dump_hires_page(ds->mmu, 2);
             return true;
         }
+    }
+    if (key == SDLK_F8) {
+        ds->vsg->setDumpNextFrame(true);
+        return true;
     }
     return false;
 }
@@ -892,9 +939,9 @@ void display_write_C029(void *context, uint32_t address, uint8_t value) {
         // TODO: ds->a2_display->reset_shr();
     }
     if (ds->new_video & 0x20) {
-        ds->vsg->set_mono_mode(true);
+        ds->vsg->set_dhgr_mono_mode(true);
     } else {
-        ds->vsg->set_mono_mode(false);
+        ds->vsg->set_dhgr_mono_mode(false);
     }
 }
 
@@ -1252,7 +1299,7 @@ DebugFormatter *display_debug(display_state_t *ds) {
     bool is_hbl = ds->video_scanner->is_hbl();
     bool is_vbl = ds->video_scanner->is_vbl();
     df->addLine(" Beam position: H %3d V %3d Is_HBL %d Is_VBL %d", hcount, vcount, is_hbl, is_vbl);
-    df->addLine(" Hcounter: %03X Vcounter: %03X", ds->video_scanner->get_hcounter(), ds->video_scanner->get_vcounter());
+    df->addLine(" HCOUNTER %02X VCOUNTER %03X", ds->video_scanner->get_hcounter(), ds->video_scanner->get_vcounter());
     df->addLine(" INTEN C041: %02X VGCINT C023: %02X INTFLAG C046: %02X", ds->f_INTEN, ds->f_VGCINT, ds->f_INTFLAG);
     df->addLine("    sl en: %d as: %d - 1sec en: %d as: %d", ds->f_scanline_enable, ds->f_scanline_asserted, ds->f_onesec_enable, ds->f_onesec_asserted);
     return df;
@@ -1325,24 +1372,38 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
             break;
     }
 
-    // Initialize the VideoScanGenerator with the CharRom
-    ds->vsg = new VideoScanGenerator(charrom);
+    // Initialize the VideoScanGenerators with the CharRom, and frame.
+    ds->frame_vsg = new(std::align_val_t(64)) FrameVSG(910, 263, vs->renderer, PIXEL_FORMAT);
+    ds->vsgr = new VideoScanGenerator_RGB(charrom, true, ds->frame_vsg);
+    ds->vsgc = new VideoScanGenerator_Comp(charrom, false, ds->frame_vsg);
+    ds->vsgc->set_render(&ds->mon_ntsc);
+
+    switch (computer->platform->id) {
+        case PLATFORM_APPLE_IIE_65816:
+        case PLATFORM_APPLE_IIGS:
+            ds->vsg = ds->vsgr;
+            break;
+        default:
+            ds->vsg = ds->vsgc;
+            break;
+    }
 
     ds->char_rom = charrom;
     ds->a2_display = new AppleII_Display(charrom);  // Create the full-frame engine.
     
     // Create the screen textures
 
-    uint16_t f_w = BASE_WIDTH+20;
-    uint16_t f_h = BASE_HEIGHT;
+    /* uint16_t f_w = BASE_WIDTH+20;
+    uint16_t f_h = BASE_HEIGHT; */
     //ds->frame_rgba = new(std::align_val_t(64)) Frame560RGBA(567, f_h, ds->screenTexture);
-    ds->frame_rgba = new Frame560RGBA(567, f_h, vs->renderer, PIXEL_FORMAT);
+    /* ds->frame_rgba = new Frame560RGBA(567, f_h, vs->renderer, PIXEL_FORMAT);
     ds->screenTexture = ds->frame_rgba->get_texture();
-    ds->frame_bits = new Frame560(560, f_h);
+    ds->frame_bits = new Frame560(560, f_h); */
     //ds->frame_rgba->clear(RGBA_t::make(0, 0, 0, 0)); // clear the frame buffers at startup.
     //ds->frame_bits->clear(0);
 
-    ds->stage2 = SDL_CreateTexture(vs->renderer, PIXEL_FORMAT, SDL_TEXTUREACCESS_TARGET, 768, 256);
+    //ds->stage2 = SDL_CreateTexture(vs->renderer, PIXEL_FORMAT, SDL_TEXTUREACCESS_TARGET, 768, 256);
+    ds->stage2 = SDL_CreateTexture(vs->renderer, PIXEL_FORMAT, SDL_TEXTUREACCESS_TARGET, 910, 263);
     if (!ds->stage2) {
         printf("Failed to create txt_shr\n");
         printf("SDL Error: %s\n", SDL_GetError());
@@ -1494,14 +1555,14 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
         ds->a2_display->set_border_color(0x06);
     }
 
-    if (ds->video_scanner_type == Scanner_AppleIIgs) {
+    /* if (ds->video_scanner_type == Scanner_AppleIIgs) {
         vs->register_frame_processor(0, [ds](bool force_full_frame) -> bool {
             bool ret;
             if (ds->framebased || force_full_frame) {
                 update_flash_state(ds);
                 ret = update_display_apple2(ds);
             } else {
-                ret = update_display_apple2gs_cycle(ds);
+                ret = update_display_apple2_cycle(ds);
             }
             return ret;
         });
@@ -1516,8 +1577,17 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
             }
             return ret;
         });
-    }
-
+    } */
+    vs->register_frame_processor(0, [ds](bool force_full_frame) -> bool {
+        bool ret;
+        if (ds->framebased || force_full_frame) {
+            update_flash_state(ds);
+            ret = update_display_apple2(ds);
+        } else {
+            ret = update_display_apple2_cycle(ds);
+        }
+        return ret;
+    });
     if (ds->video_scanner_type == Scanner_AppleIIgs) {
         // For generating the 1sec interrupt, try to sync to real time as close to a 1 second increment as possible,
         // based on module startup time.

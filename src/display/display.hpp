@@ -33,6 +33,9 @@
 #include "devices/displaypp/VideoScanner.hpp"
 
 class VideoScanGenerator ;
+class VideoScanGeneratorIntf;
+class VideoScanGenerator_Comp;
+class VideoScanGenerator_RGB;
 class CharRom;
 
 // Graphics vs Text, C050 / C051
@@ -171,13 +174,24 @@ public:
 
     video_scanner_t video_scanner_type = Scanner_AppleII;
     VideoScannerII *video_scanner = nullptr; // if set, use this instead of default video generation.
-    VideoScanGenerator *vsg = nullptr;
+    //VideoScanGenerator *vsg = nullptr;
     bool framebased = true;
     CharRom *char_rom = nullptr;
 
     AppleII_Display *a2_display;
-    Frame560     *frame_bits;
-    Frame560RGBA *frame_rgba;
+    /* Frame560     *frame_bits;
+    Frame560RGBA *frame_rgba; */
+    FrameVSG     *frame_vsg = nullptr;
+    VideoScanGeneratorIntf *vsg = nullptr;
+    VideoScanGenerator_Comp *vsgc = nullptr;
+    VideoScanGenerator_RGB *vsgr = nullptr;
+    int32_t vsize = 0;
+    int32_t hsize = 0;
+    int32_t hpos = 0;
+    int32_t vpos = 0;
+    bool frame_moved = true;
+    int scanner_choice = 0;
+
     Monochrome560 mon_mono;
     NTSC560 mon_ntsc;
     GSRGB560 mon_rgb;
