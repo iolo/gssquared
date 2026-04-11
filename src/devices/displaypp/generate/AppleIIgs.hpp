@@ -30,7 +30,10 @@ struct SHRMode {
 };
 
 struct Palette {
-    SHRColor colors[16];
+    SHRColor colors[16]; // 12-bit color values
+    RGBA_t active[16] = {0}; 
+    /* RGBA_t color[16];
+    RGBA_t mono[16]; */
 };
 
 struct SHR {
@@ -52,6 +55,11 @@ inline RGBA_t convert12bitTo24bit(SHRColor c12) {
     c24.a = 0xFF;
     // Combine into 24-bit color value
     return c24;
+}
+
+inline RGBA_t convert24bitColorToMono(RGBA_t c24) {
+    uint16_t luma = (c24.r * 0.299 + c24.g * 0.587 + c24.b * 0.114);
+    return RGBA_t::make(luma, luma, luma, 0xFF);
 }
 
 template<int pixelno>
