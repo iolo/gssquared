@@ -39,7 +39,27 @@ typedef enum {
     VM_VSYNC,
     VM_HSYNC,
     VM_LAST_HBL,
+    VM_BLANK,
 } video_mode_t;
+
+constexpr const char *video_mode_names[] = {
+    "TEXT40",
+    "LORES",
+    "LORES_7M",
+    "HIRES",
+    "HIRES_NOSHIFT",
+    "TEXT80",
+    "DLORES",
+    "DHIRES",
+    "SHR",
+    "SHR_MODE",
+    "SHR_PALETTE",
+    "BORDER_COLOR",
+    "VSYNC",
+    "HSYNC",
+    "LAST_HBL",
+    "BLANK",
+};
 
 #define VS_FL_ALTCHARSET 0x01
 #define VS_FL_MIXED      0x02
@@ -154,7 +174,7 @@ public:
     virtual void initialize() { init_video_addresses(); }
     virtual void allocate();
 
-    virtual void reset() { frame_scan->clear(); /* hcount = 0; */ scan_index = 7 /* (65*243) */; };
+    virtual void reset() { frame_scan->clear(); /* hcount = 0; */ scan_index = 0 /* (65*243) */; };
 
     virtual void video_cycle();
     uint32_t get_scan_cycle() { return scan_index; }

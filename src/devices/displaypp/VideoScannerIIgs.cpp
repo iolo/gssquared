@@ -71,29 +71,33 @@ void VideoScannerIIgs::init_video_addresses()
         uint16_t fl = 0;
         uint32_t hc = idx % 65;
         uint32_t vc = idx / 65;
-        if (hc < 25) fl |= SA_FLAG_HBL;
-        if (vc >= 192) fl |= SA_FLAG_VBL;
-        if ((hc == 64) && (vc < 261)) fl |= SA_FLAG_HSYNC;
-        if ((hc == 64) && (vc == 261)) fl |= SA_FLAG_VSYNC;
+        //if (hc < 25) fl |= SA_FLAG_HBL; // TODO: 7-18
+        if ((hc >= 7) && (hc <= 18)) fl |= SA_FLAG_HBL; // TODO: 7-18
+        if ((vc >= 221) && (vc <= 242)) fl |= SA_FLAG_VBL; // TODO: should be 221 - 242
+        //if (vc >= 192) fl |= SA_FLAG_VBL;
 
-        if ( (vc >= 0 and vc < 192) &&  
-            (((hc >= 0) && (hc <= 6)) || ((hc >= 19) && (hc <= 24)) )) fl |= SA_FLAG_BORDER;
+        if (hc == 12) /* && (vc <= 261) )*/ fl |= SA_FLAG_HSYNC;
+        if ((hc == 64) && (vc == 227)) fl |= SA_FLAG_VSYNC;
+
+        // border during content area..
+        // TODO: this might be a dumb way of defining a rectangle?
+        if ( ((vc >= 0) && (vc < 192)) &&  
+            (((hc >= 0) && (hc <= 6)) || ((hc >= 19) && (hc <= 24)) )
+        ) fl |= SA_FLAG_BORDER;
+
         if (
-            ((vc >= 243 && vc <= 261) || (vc >= 192 && vc <= 220)) && 
+            (((vc >= 243) && (vc <= 261)) || ((vc >= 192) && (vc <= 220)) ) && 
             (((hc <= 6) || (hc>= 19)))
         ) fl |= SA_FLAG_BORDER;
-        /* if (((vc >= 243 && vc <= 261) || (vc >= 192 && vc <= 220)) && 
-            ((hc <= 6 || hc >= 25))) {
-            fl |= SA_FLAG_BORDER;
-        } */
 
         // SHR Mode
         // shr buffer is linear. But there are also some cycles where we need to read the palette data from RAM.
         // each cycle in SHR mode grabs 4 bytes from RAM.
         uint16_t shr_addr = 0x2000; // dummy default
-        uint8_t shr_fl = fl;
+        uint16_t shr_fl = fl;
         if (vc < 200) { // shr is 200 scanlines..
-            if (hc>=25) { shr_addr = 0x2000 + ((hc-25)*4) + (vc * 160); shr_fl |= SA_FLAG_SHR; } // shr data
+            // if in shr, unset border flag.
+            if (hc>=25) { shr_addr = 0x2000 + ((hc-25)*4) + (vc * 160); shr_fl |= SA_FLAG_SHR; shr_fl &= ~SA_FLAG_BORDER; } // shr data
             else if (hc == 6) { shr_addr = 0x9D00 + vc; shr_fl |= SA_FLAG_SCB; } // SCB
             else if (hc >= 7 && hc <= 14) { shr_addr = 0x9E00 + ((hc - 7) * 4); shr_fl |= SA_FLAG_PALETTE; } // Palette
         }
@@ -107,12 +111,35 @@ void VideoScannerIIgs::init_video_addresses()
         mixed_p1[idx].flags = fl;
         mixed_p2[idx].flags = fl;
     }
-    /* int borderpixels = 0;
+    dump_cycles();
+}
+
+void VideoScannerIIgs::dump_cycles()
+{
+    FILE *f = fopen("bordercycles.txt", "w");
+    int bordercycles = 0;
     for (int idx = 0; idx < SCANNER_LUT_SIZE; ++idx) {
+        uint16_t h = idx % 65;
+        uint16_t v = idx / 65;
+
+        fprintf(f, "%5d %04X [%3dH %3dV] ", idx, shr_p1[idx].addr, h, v);
         if (lores_p1[idx].flags & SA_FLAG_BORDER) {
-            borderpixels++;
+            bordercycles++;
+            fprintf(f, "BORDER ");
         }
-    } */
+        if (lores_p1[idx].flags & SA_FLAG_SCB) fprintf(f, "SCB ");
+        if (lores_p1[idx].flags & SA_FLAG_PALETTE) fprintf(f, "PALETTE ");
+        if (lores_p1[idx].flags & SA_FLAG_SHR) fprintf(f, "SHR ");
+        if (lores_p1[idx].flags & SA_FLAG_VSYNC) fprintf(f, "VSYNC ");
+        if (lores_p1[idx].flags & SA_FLAG_HSYNC) fprintf(f, "HSYNC ");
+        if (lores_p1[idx].flags & SA_FLAG_HBL) fprintf(f, "HBL ");
+        if (lores_p1[idx].flags & SA_FLAG_VBL) fprintf(f, "VBL ");
+        fprintf(f, "\n");
+    }
+    fprintf(f, "Border cycles: %d\n", bordercycles);
+    fclose(f);
+    printf("Border cycles: %d\n", bordercycles);
+    fclose(f);
 }
 
 void VideoScannerIIgs::video_cycle()
@@ -124,17 +151,17 @@ void VideoScannerIIgs::video_cycle()
     mmu->set_floating_bus(video_byte);
 
     Scan_t scan;
-    if (sa.flags & SA_FLAG_BORDER) {
+    /* if (sa.flags & SA_FLAG_BORDER) {
         scan.mode = (uint8_t)VM_BORDER_COLOR;
         scan.mainbyte = border_color;
         scan.flags = mode_flags;
         frame_scan->push(scan);
-    }
-    if (sa.flags & SA_FLAG_SHR) {
+    } */
+    /* if (sa.flags & SA_FLAG_SHR) {
         scan.mode = static_cast<uint8_t>(video_mode); // SHR_PIXEL, SHR_PALETTE, SHR_MODE
         scan.shr_bytes = *((uint32_t *)(ram + 0x1'0000 + address));
         frame_scan->push(scan);
-    } else if (sa.flags & SA_FLAG_SCB) {
+    }  else */ if (sa.flags & SA_FLAG_SCB) {
         scan.mode = (uint8_t)VM_SHR_MODE;
         scan.mainbyte = ram[address + 0x10000];
         scan.flags = mode_flags;
@@ -147,7 +174,22 @@ void VideoScannerIIgs::video_cycle()
         scan.shr_bytes = *((uint32_t *)(ram + eaddr));
         scan.flags = mode_flags;
         frame_scan->push(scan);
-    } else if (!(sa.flags & SA_FLAG_BLANK)) {
+    } /* else */ 
+    if (sa.flags & SA_FLAG_BLANK) {
+        scan.mode = (uint8_t)VM_BLANK;
+        scan.mainbyte = 0;
+        scan.flags = mode_flags;
+        frame_scan->push(scan);
+    } else if (sa.flags & SA_FLAG_BORDER) {
+        scan.mode = (uint8_t)VM_BORDER_COLOR;
+        scan.mainbyte = border_color;
+        scan.flags = mode_flags;
+        frame_scan->push(scan);
+    } else if (sa.flags & SA_FLAG_SHR) {
+        scan.mode = static_cast<uint8_t>(video_mode); // SHR_PIXEL, SHR_PALETTE, SHR_MODE
+        scan.shr_bytes = *((uint32_t *)(ram + 0x1'0000 + address));
+        frame_scan->push(scan);
+    }  else {
         scan.mode = static_cast<uint8_t>(video_mode); 
         scan.auxbyte = ram[address + 0x10000];
         scan.mainbyte = video_byte;

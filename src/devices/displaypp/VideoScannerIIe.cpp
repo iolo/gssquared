@@ -73,8 +73,8 @@ void VideoScannerIIe::init_video_addresses()
         if (hc < 25) fl |= SA_FLAG_HBL;
         if (vc >= 192) fl |= SA_FLAG_VBL;
         // hc=0 vc=0 here is upper left pixel of data display.
-        if ((hc == 64) && (vc < 261)) fl |= SA_FLAG_HSYNC;
-        if ((hc == 64) && (vc == 261)) fl |= SA_FLAG_VSYNC;
+        if ((hc == 12) && (vc < 261)) fl |= SA_FLAG_HSYNC;
+        if ((hc == 64) && (vc == 227)) fl |= SA_FLAG_VSYNC;
 
         lores_p1[idx].flags = fl;
         lores_p2[idx].flags = fl;
@@ -94,7 +94,13 @@ void VideoScannerIIe::video_cycle()
     mmu->set_floating_bus(video_byte);
 
     Scan_t scan;
-    if (!(sa.flags & SA_FLAG_BLANK)) {
+    if (sa.flags & SA_FLAG_BLANK) {
+        scan.mode = (uint8_t)VM_BLANK;
+        scan.mainbyte = 0;
+        scan.flags = mode_flags;
+        frame_scan->push(scan);
+    } else {
+    //if (!(sa.flags & SA_FLAG_BLANK)) {
         scan.mode = (uint8_t)video_mode;
         scan.auxbyte = ram[address + 0x10000];
         scan.mainbyte = video_byte;
