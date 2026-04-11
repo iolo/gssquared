@@ -368,7 +368,7 @@ text looks like a** in it. */
         } 
     }
 
-    void render(Frame560 *frame_byte, Frame560RGBA *frame_rgba, RGBA_t color ) {
+    virtual void render(Frame560 *frame_byte, FrameVSG *frame_rgba) override {
         uint16_t framewidth = frame_byte->width();
         uint16_t *lut;
 
@@ -391,10 +391,10 @@ text looks like a** in it. */
             if (color_mode.colorburst == 1 && color_mode.mixed_mode == 0) {
                 // do color burst
 
-                int bitindex = 0;
+                /* int bitindex = 0;
                 int ph = 0;
                 uint8_t latch = 0, pixel = 0;
-                bool diff = false;
+                bool diff = false; */
                 uint32_t shiftreg = 0;
                 bool bit;
 
