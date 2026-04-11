@@ -115,9 +115,20 @@ public:
         return stream[0];
     }
 
+    inline void advance(int count = 1) noexcept {
+        hloc += count;
+    }
+    
     inline void push(bs_t bit) noexcept { 
         //stream[scanline][hloc++] = bit;
         row[hloc++] = bit;
+    }
+
+    inline void push_n(bs_t bit, int count) noexcept {
+        for (int i = 0; i < count; i++) {
+            row[hloc+i] = bit;
+        }
+        hloc += count;
     }
 
     inline bs_t pull() noexcept { 
@@ -136,6 +147,11 @@ public:
         hloc = 0;
     }
 
+    inline void set_line_v(int line) noexcept { 
+        scanline = line;
+        row = stream[scanline];
+    }
+
     inline void open() {
         if constexpr (std::is_same_v<StoragePolicy, SDLTextureStorage>) {
             void *pixels;
@@ -143,6 +159,7 @@ public:
     
             SDL_LockTexture(texture, nullptr, &pixels, &pitch);
             stream = static_cast<bs_t(*)[WIDTH]>(pixels);
+            set_line_v(scanline);
         }
     }
 
