@@ -319,6 +319,7 @@ add_library(gs2_video_scanner
     src/devices/displaypp/VideoScanGenerator_Comp.cpp
     src/devices/displaypp/VideoScanGenerator_RGB.cpp
     )
+target_link_libraries(gs2_video_scanner PUBLIC gs2_displaypp)
 
 add_library(gs2_devices_rtc_pram src/devices/rtc/rtc_pram.cpp)
 
