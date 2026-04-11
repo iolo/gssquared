@@ -12,3 +12,6 @@ using Frame560RGBA = Frame<RGBA_t, 192, 567, SDLTextureStorage>;
 using FrameBorder = Frame<RGBA_t, 263, 53, SDLTextureStorage>;
 // shr texture
 using Frame640 = Frame<RGBA_t, 200, 640, SDLTextureStorage>;
+
+// new omnibus buffer
+using FrameVSG = Frame<RGBA_t, 263, 910, SDLTextureStorage>;
