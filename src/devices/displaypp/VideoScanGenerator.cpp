@@ -35,12 +35,69 @@ void VideoScanGenerator::build_hires40Font(bool delayEnabled)
     }
 }
 
+// dump scan buffer to file without modifying contents.
+void VideoScanGenerator::saveScanBufferToFile(ScanBuffer *frame_scan, const char *filename)
+{
+    FILE *file = fopen(filename, "w");
+    if (file == nullptr) {
+        printf("Error: could not open file %s\n", filename);
+        return;
+    }
+    uint16_t h = 0, v = 0;
+    uint32_t count = frame_scan->get_count();
+    for (int i = 0; i < count; i++) {
+        Scan_t scan = frame_scan->get(i);
+        fprintf(file, "%5d [%3dH %3dV]: %02X %02X %02X %02X %08X", i, h, v, scan.mode, scan.mainbyte, scan.auxbyte, scan.flags, scan.shr_bytes);
+        fprintf(file, "| %s | ", video_mode_names[scan.mode]);
+        if (scan.mode == VM_VSYNC) v = 0;
+        else if (scan.mode == VM_HSYNC) { h = 0; v++; }
+        else h++;
+
+        if (scan.flags & SA_FLAG_HBL) fprintf(file, "HBL ");
+        if (scan.flags & SA_FLAG_VBL) fprintf(file, "VBL ");
+        if (scan.flags & SA_FLAG_BORDER) fprintf(file, "BORDER ");
+        if (scan.flags & SA_FLAG_SCB) fprintf(file, "SCB ");
+        if (scan.flags & SA_FLAG_PALETTE) fprintf(file, "PALETTE ");
+        if (scan.flags & SA_FLAG_SHR) fprintf(file, "SHR ");
+        if (scan.flags & SA_FLAG_VSYNC) { fprintf(file, "VSYNC "); }
+        if (scan.flags & SA_FLAG_HSYNC) { fprintf(file, "HSYNC "); }
+        fprintf(file, "\n");
+    }
+    fclose(file);
+    // wait for user to hit enter from cli
+    /* printf("Press Enter to continue...");
+    getchar();
+    printf("\n"); */
+    dump_next_frame = false;
+}
+
+
 void VideoScanGenerator::generate_frame(ScanBuffer *frame_scan, Frame560 *frame_byte, FrameBorder *border, Frame640 *frame_shr)
 {
+    mode = { .p = 0 }; 
+    palette = { .colors = {0} };
+    lastpixel = {0};
+
+    hcount = 0;
+    vcount = 0;
+    vcount_real = 0;
+    
+    lastByte = 0x00; // for hires
+    
+    color_delay_mask = 0xFF;
+
+    palette_index = 0; // reset to 0 each scanline.
+    modeChecks = true;
+
     uint64_t fcnt = frame_scan->get_count();
     if (fcnt == 0) {
         printf("Warning: no data in ScanBuffer\n");
         return;
+    }
+    
+    if (dump_next_frame) {
+        saveScanBufferToFile(frame_scan, "scan_buffer.txt");
+        dump_next_frame = false;
     }
 
     if (border != nullptr) {
@@ -53,29 +110,16 @@ void VideoScanGenerator::generate_frame(ScanBuffer *frame_scan, Frame560 *frame_
         flash_counter = 0;
     }
 
-    SHRMode mode = { .p = 0 }; 
-    Palette palette = { .colors = {0} };
-    RGBA_t lastpixel = {0};
-
-    uint32_t hcount = 0;
-    uint32_t vcount = 0;
-    frame_byte->set_line(vcount);
+    frame_byte->set_line(0);
     if (border != nullptr) {
-        border->set_line(vcount);
+        border->set_line(0);
     }
     if (frame_shr != nullptr) {
-        frame_shr->set_line(vcount);
+        frame_shr->set_line(0);
     }
 
-    uint8_t lastByte = 0x00; // for hires
-    color_mode_t color_mode;
-    
-    uint8_t color_delay_mask = 0xFF;
 
-    int palette_index = 0; // reset to 0 each scanline.
-    bool modeChecks = true;
-
-    while (1) {
+    while (fcnt--) {
         Scan_t scan = frame_scan->pull();
         if (modeChecks && scan.mode <= VM_DHIRES) {
             color_mode.colorburst = (scan.mode == VM_TEXT40 || scan.mode == VM_TEXT80) ? 0 : 1;
@@ -90,19 +134,31 @@ void VideoScanGenerator::generate_frame(ScanBuffer *frame_scan, Frame560 *frame_
 
         switch (eff_mode) {
             case VM_VSYNC:  // end of frame
-                    return; 
+                    //return; 
+                    vcount_real = 0;
+                    vcount = 0;
+                    frame_byte->set_line(0);
+                    if (border != nullptr) {
+                        border->set_line(0);
+                    }
+                    if (frame_shr != nullptr) {
+                        frame_shr->set_line(0);
+                    }
+                    break;
 
             case VM_HSYNC: {
                     lastByte = 0x00; // for hires
                     hcount = 0;
-                    vcount++;
-                    if (vcount >= 200) {
+                    vcount_real++;
+                    vcount = vcount_real-1;
+                    //vcount++;
+                    if (vcount >= 263) { // todo: tweak this with new approach to hsync..
                         assert(1);
                     }
                     modeChecks = true;
                     frame_byte->set_line(vcount);
                     if (border != nullptr) {
-                        border->set_line(vcount);
+                        border->set_line(vcount_real);
                     }
                     if (frame_shr != nullptr) {
                         frame_shr->set_line(vcount);
@@ -201,7 +257,9 @@ void VideoScanGenerator::generate_frame(ScanBuffer *frame_scan, Frame560 *frame_
                     uint8_t td = (scan.shr_bytes & 0x0F) << 4;
                     uint8_t cdata = char_rom->get_char_scanline(tchar, vcount & 0b111);
                     cdata ^= invert;
-
+ if (vcount>191) { 
+    assert(1); 
+} // todo: remove this
                     for (int n = 0; n < 7; n++) { // it's ok compiler will unroll this
                         frame_byte->push((cdata & 1) ? tc : td); 
                         frame_byte->push((cdata & 1) ? tc : td); 
