@@ -7,6 +7,7 @@
 #include <SDL3/SDL.h>
 
 //#include "devices/displaypp/frame/frame_bit.hpp"
+#include "SDL3/SDL_keycode.h"
 #include "SDL3/SDL_rect.h"
 #include "SDL3/SDL_render.h"
 #include "SDL3/SDL_surface.h"
@@ -14,10 +15,11 @@
 #include "devices/displaypp/VideoScannerII.hpp"
 #include "devices/displaypp/VideoScannerIIe.hpp"
 #include "devices/displaypp/VideoScannerIIgs.hpp"
-#include "devices/displaypp/VideoScanGenerator.cpp"
+#include "devices/displaypp/VideoScanGenerator_RGB.hpp"
+#include "devices/displaypp/VideoScanGenerator_Comp.hpp"
 #include "devices/displaypp/render/Monochrome560.hpp"
 #include "devices/displaypp/render/NTSC560.hpp"
-#include "devices/displaypp/render/GSRGB560.hpp"
+//#include "devices/displaypp/render/GSRGB560.hpp"
 #include "devices/displaypp/CharRom.hpp"
 #include "devices/displaypp/ScanBuffer.hpp"
 #include "mmus/mmu_iie.hpp"
@@ -34,34 +36,34 @@ struct canvas_t {
 };
 
 int text_addrs[24] =
-  {   // text page 1 line addresses
-            0x0000,
-            0x0080,
-            0x0100,
-            0x0180,
-            0x0200,
-            0x0280,
-            0x0300,
-            0x0380,
+{   // text page 1 line addresses
+    0x0000,
+    0x0080,
+    0x0100,
+    0x0180,
+    0x0200,
+    0x0280,
+    0x0300,
+    0x0380,
 
-            0x0028,
-            0x00A8,
-            0x0128,
-            0x01A8,
-            0x0228,
-            0x02A8,
-            0x0328,
-            0x03A8,
+    0x0028,
+    0x00A8,
+    0x0128,
+    0x01A8,
+    0x0228,
+    0x02A8,
+    0x0328,
+    0x03A8,
 
-            0x0050,
-            0x00D0,
-            0x0150,
-            0x01D0,
-            0x0250,
-            0x02D0,
-            0x0350,
-            0x03D0,
-        };
+    0x0050,
+    0x00D0,
+    0x0150,
+    0x01D0,
+    0x0250,
+    0x02D0,
+    0x0350,
+    0x03D0,
+};
 
 void generate_dlgr_test_pattern(uint8_t *textpage, uint8_t *altpage) {
 
@@ -133,85 +135,6 @@ struct display_state_t {
     border_rect_array_t shr_borders;
 };
 
-// this is just copied from the display.cpp file.
-void calculate_border_rects(display_state_t *ds, bool shift_enabled) {
-    float shift_offset = shift_enabled ? 7.0f : 0.0f;
-    float width = shift_enabled ? 567.0f : 560.0f;
-
-    constexpr float b_l_x = 7.0f;
-    constexpr float b_l_w = 6.0f;
-
-    constexpr float b_r_x = 0.0f;
-    constexpr float b_r_w = 7.0f;
-
-    border_rect_array_t &ii_borders = ds->ii_borders;
-    // top
-    ii_borders[B_TOP][B_LT].src = {b_l_x, 244.0, b_l_w, 19};
-    ii_borders[B_TOP][B_LT].dst = {0.0, 0.0, 42.0, 19};
-
-    ii_borders[B_TOP][B_CEN].src = {13, 244.0, 40, 19};
-    ii_borders[B_TOP][B_CEN].dst = {42, 0.0, 560, 19};
-
-    ii_borders[B_TOP][B_RT].src = {0, 244.0, b_r_w, 19};
-    ii_borders[B_TOP][B_RT].dst = {42.0f+560.0f-shift_offset, 0.0, 49.0, 19};
-
-    // center
-    ii_borders[B_CEN][B_LT].src = {b_l_x, 1.0, b_l_w, 192};
-    ii_borders[B_CEN][B_LT].dst = {0, 19.0, 42.0, 192};
-
-    ii_borders[B_CEN][B_CEN].src = {0.0, 0.0, width, (float)192}; // not from border texture
-    ii_borders[B_CEN][B_CEN].dst = {42.0f-shift_offset, 19.0, width, 192}; // not from border texture
-
-    ii_borders[B_CEN][B_RT].src = {0.0, 1.0, b_r_w, 192};
-    ii_borders[B_CEN][B_RT].dst = {42.0f+560.0f-shift_offset, 19.0, 49.0, 192};
-
-    // bottom
-    ii_borders[B_BOT][B_LT].src = {b_l_x, 193.0, b_l_w, 21};
-    ii_borders[B_BOT][B_LT].dst = {0.0, 19+192, 42.0, 21};
-
-    ii_borders[B_BOT][B_CEN].src = {13.0, 193.0, 40, 21};
-    ii_borders[B_BOT][B_CEN].dst = {42, 19+192, 560, 21};
-
-    ii_borders[B_BOT][B_RT].src = {0, 193.0, b_r_w, 21};
-    ii_borders[B_BOT][B_RT].dst = {42.0f+560.0f-shift_offset, 19+192, 49.0, 21};
-
-    // SHR mode - in shr mode one cycle = 8 pixels. So we have to scale the borders out accordingly.
-    border_rect_array_t &shr_borders = ds->shr_borders;
-    // top
-    shr_borders[B_TOP][B_LT].src = {b_l_x, 244.0, b_l_w, 19};
-    shr_borders[B_TOP][B_LT].dst = {0.0, 0.0, 48.0, 19};
-
-    shr_borders[B_TOP][B_CEN].src = {13, 244.0, 40, 19};
-    shr_borders[B_TOP][B_CEN].dst = {48, 0.0, 640, 19};
-
-    shr_borders[B_TOP][B_RT].src = {0, 244.0, b_r_w, 19};
-    shr_borders[B_TOP][B_RT].dst = {48.0f+640.0f, 0.0, 56.0, 19};
-    
-    // center
-    shr_borders[B_CEN][B_LT].src = {0.0, 0.0, b_l_w, 192};
-    shr_borders[B_CEN][B_LT].dst = {0.0, 19.0, 48.0, 192};
-
-    shr_borders[B_CEN][B_CEN].src = {0.0f, 0.0f, 640.0f, 200.0f};
-    shr_borders[B_CEN][B_CEN].dst = {48.0f, 19.0f, 640.0f, 200.0f};
-
-    shr_borders[B_CEN][B_RT].src = {0.0, 0.0, b_r_w, 192}; 
-    shr_borders[B_CEN][B_RT].dst = {48+640, 19.0, 56.0, 192}; 
-
-    // bottom
-    shr_borders[B_BOT][B_LT].src = {b_l_x, 193.0, b_l_w, 21};
-    shr_borders[B_BOT][B_LT].dst = {0.0, 19+192, 48.0, 21};
-
-    shr_borders[B_BOT][B_CEN].src = {13.0, 193.0, 40, 21};
-    shr_borders[B_BOT][B_CEN].dst = {48, 19+192, 640, 21};
-
-    shr_borders[B_BOT][B_RT].src = {0, 193.0, b_r_w, 21};
-    shr_borders[B_BOT][B_RT].dst = {48.0f+640.0f, 19+192, 56.0, 21};     
-}
-
-void print_rect(const char *name, border_rect_t &r) {
-    printf("%s: SRC: (%f, %f, %f, %f)\n", name, r.src.x, r.src.y, r.src.w, r.src.h);
-    printf("%s: DST: (%f, %f, %f, %f)\n", name, r.dst.x, r.dst.y, r.dst.w, r.dst.h);
-}
 
 #if 0
 void print_border_rects() {
@@ -291,6 +214,21 @@ int main(int argc, char **argv) {
     SDL_ScaleMode scales[3] = {SDL_SCALEMODE_LINEAR, SDL_SCALEMODE_NEAREST, SDL_SCALEMODE_PIXELART,  };
     //border_rect_array_t *modes_rects[2] = { ds.ii_borders, ds.shr_borders };
 
+    // hsize and vsize:
+    // left and right arrows stretch (right) or shrink (left) the size of viewport; based on center of 910.
+    // up and down arrows stretch (up) or shrink (down) the size of the viewport; based on center of 263.
+
+    /* int32_t vsize = 237; // initial size
+    int32_t hsize = 680; // initial size
+    int32_t hpos = -8; // initial position
+    int32_t vpos = 4; // initial position */
+    int32_t vsize = 0;
+    int32_t hsize = 0;
+    int32_t hpos = 0;
+    int32_t vpos = 0;
+    bool frame_moved = true;
+    SDL_FRect ii_frame_src;
+
     uint64_t start = 0, end = 0;
 
     canvas_t canvasses[2] = {
@@ -315,12 +253,13 @@ int main(int argc, char **argv) {
 
     // Calculate various dimensions
 
-    uint16_t b_w = 184 / 2;
-    uint16_t b_h = 40;
+    //uint16_t b_w = 184 / 2;
+    //uint16_t b_h = 40;
+    //const uint16_t f_w = SCREEN_TEXTURE_WIDTH + b_w, f_h = SCREEN_TEXTURE_HEIGHT + b_h;
+    //const uint16_t c_w = f_w * 2, c_h = f_h * 4;
 
-    const uint16_t f_w = SCREEN_TEXTURE_WIDTH + b_w, f_h = SCREEN_TEXTURE_HEIGHT + b_h;
-
-    const uint16_t c_w = f_w * 2, c_h = f_h * 4;
+    // same window size as the emulator.
+    const uint16_t c_w = 1288, c_h = 928;
 
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window *window = SDL_CreateWindow("VideoScanner Test Harness", c_w, c_h, SDL_WINDOW_RESIZABLE);
@@ -352,7 +291,8 @@ int main(int argc, char **argv) {
         return 1;
     } */
 
-    SDL_Texture *stage2 = SDL_CreateTexture(renderer, PIXEL_FORMAT, SDL_TEXTUREACCESS_TARGET, 768, 256);
+    // used for partial updates, screen capture.
+    SDL_Texture *stage2 = SDL_CreateTexture(renderer, PIXEL_FORMAT, SDL_TEXTUREACCESS_TARGET, 910, 263);
     if (!stage2) {
         printf("Failed to create txt_shr\n");
         printf("SDL Error: %s\n", SDL_GetError());
@@ -373,7 +313,7 @@ int main(int argc, char **argv) {
 
     int testiterations = 10000;
 
-    Frame560 *frame_byte = new(std::align_val_t(64)) Frame560(560, II_SCREEN_TEXTURE_HEIGHT);
+    // *frame_byte = new(std::align_val_t(64)) Frame560(560, II_SCREEN_TEXTURE_HEIGHT);
 
     uint8_t *ram = mmu->get_memory_base(); //new uint8_t[0x20000]; // 128k!
 
@@ -427,22 +367,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    Frame560RGBA *fr_apple2 = new(std::align_val_t(64)) Frame560RGBA(567, II_SCREEN_TEXTURE_HEIGHT, renderer, PIXEL_FORMAT);
-    Frame640 *fr_shr = new(std::align_val_t(64)) Frame640(640, 200, renderer, PIXEL_FORMAT);
-    FrameBorder *fr_border = new(std::align_val_t(64)) FrameBorder(53, 263, renderer, PIXEL_FORMAT);
-
-    SDL_Texture *txt_apple2 = fr_apple2->get_texture();
-    SDL_Texture *txt_border = fr_border->get_texture();
-    SDL_Texture *txt_shr = fr_shr->get_texture();
-
-    SDL_SetTextureScaleMode(txt_shr, SDL_SCALEMODE_NEAREST);
-    SDL_SetTextureScaleMode(txt_apple2, SDL_SCALEMODE_NEAREST);
-    SDL_SetTextureBlendMode(txt_apple2, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureScaleMode(txt_border, SDL_SCALEMODE_NEAREST);
-
     Monochrome560 monochrome;
     NTSC560 ntsc_render;
-    GSRGB560 rgb_render;
 
     uint16_t border_color = 0x0F;
 
@@ -453,16 +379,21 @@ int main(int argc, char **argv) {
     VideoScannerIIgs *video_scanner_iigs = new VideoScannerIIgs(mmu);
     video_scanner_iigs->initialize();
     video_scanner_iigs->set_border_color(0x0F);
-    VideoScanGenerator *vsg = new VideoScanGenerator(&iie_rom);
+
+    FrameVSG *fr_vsg = new(std::align_val_t(64)) FrameVSG(910, 263, renderer, PIXEL_FORMAT);
+    fr_vsg->clear(RGBA_t::make(0xE0, 0x00, 0x00, 0xFF));
+    VideoScanGenerator_RGB *vsgr = new VideoScanGenerator_RGB(&iie_rom, false, fr_vsg);
+    VideoScanGenerator_Comp *vsgc = new VideoScanGenerator_Comp(&iie_rom, false, fr_vsg);
+    VideoScanGeneratorIntf *vsg = vsgr;
+
+    vsgc->set_render(&ntsc_render);
 
     vsg->set_display_shift(false);
-    rgb_render.set_shift_enabled(false);
+    vsgc->set_display_shift(false);
     ntsc_render.set_shift_enabled(false);
     monochrome.set_shift_enabled(false);
     
     display_state_t ds;
-    calculate_border_rects(&ds, false);
-    //print_border_rects();
 
     int pitch;
     void *pixels;
@@ -471,12 +402,12 @@ int main(int argc, char **argv) {
     uint64_t times[900];
     uint64_t framecnt = 0;
 
-    int render_mode = 1;
+    int render_mode = 3;
     int sharpness = 0;
     bool exiting = false;
     bool flash_state = false;
     int flash_count = 0;
-    int scanner_choice = SCANNER_II;
+    int scanner_choice = SCANNER_IIGS;
     int old_scanner_choice = -1;
     
     bool rolling_border = false;
@@ -492,7 +423,8 @@ int main(int argc, char **argv) {
     int fg = 0x0F;
     int bg = 0x00;
 
-    SDL_SetTextureScaleMode(stage2, scales[sharpness]);
+    int cycle_mode = 4; // do not process cycles. 1 = single cycle; 2 = 65 cycles.
+    int vidcycle = 0;
 
     while (++framecnt && !exiting)  {
         VideoScannerII *scanner;
@@ -531,7 +463,11 @@ int main(int argc, char **argv) {
             }
             if (event.type == SDL_EVENT_KEY_DOWN) {
                 switch (event.key.key) { 
+                    case SDLK_F8:
+                        //vsg->setDumpNextFrame(true);
+                        break;
                     case SDLK_1:
+                        frame_moved = true;
                         generate_mode = 1;
                         scanner->set_page_1();
                         scanner->reset_80col();
@@ -540,6 +476,7 @@ int main(int argc, char **argv) {
                         break;
                 
                     case SDLK_2:
+                        frame_moved = true;
                         generate_mode = 2;
                         scanner->set_page_1();
                         scanner->set_80col();
@@ -548,6 +485,7 @@ int main(int argc, char **argv) {
                         break;
                     
                     case SDLK_3:
+                        frame_moved = true;
                         generate_mode = 3;
                         scanner->set_page_1();
                         scanner->set_graf();
@@ -557,7 +495,14 @@ int main(int argc, char **argv) {
                         scanner->reset_shr();
                         break;
 
+                    case SDLK_D:
+                        
+                        scanner->set_dblres_f(!scanner->is_dblres());
+                        
+                        break;
+
                     case SDLK_4:
+                        frame_moved = true;
                         generate_mode = 4;
                         scanner->set_graf();
                         scanner->set_page_1();
@@ -568,6 +513,7 @@ int main(int argc, char **argv) {
                         break;
                     
                     case SDLK_5:
+                        frame_moved = true;
                         generate_mode = 5;
                         scanner->set_page_2();
                         scanner->reset_80col();
@@ -578,6 +524,7 @@ int main(int argc, char **argv) {
                         break;
                     
                     case SDLK_6:
+                        frame_moved = true;
                         generate_mode = 6;
                         scanner->set_dblres();
                         scanner->set_hires();
@@ -588,21 +535,31 @@ int main(int argc, char **argv) {
                         break;
                     
                     case SDLK_7:
+                        frame_moved = true;
                         generate_mode = 7;
                         scanner->set_shr();
                         break;
                     
                     case SDLK_8:
+                        frame_moved = true;
                         generate_mode = 8;
                         scanner->set_shr();
                         break;
                     
                     case SDLK_N:
                         render_mode = 2;
+                        vsgc->set_render(&ntsc_render);
                         break;
                     
                     case SDLK_M:
-                        render_mode = 1;
+                        if (event.key.mod & SDL_KMOD_SHIFT) {
+                            vsg->set_mono_mode(!vsg->get_mono_mode());
+                            vsgc->set_mono_mode(!vsgc->get_mono_mode());
+                        } else {
+                            render_mode = 1;
+                            vsgc->set_render(&monochrome);
+                            monochrome.set_mono_color(RGBA_t::make(0x00, 0xFF, 0x00, 0xFF));
+                        }
                         break;
                     
                     case SDLK_R:
@@ -613,21 +570,22 @@ int main(int argc, char **argv) {
                         scanner->set_altchrset();
                         break;
                     
-                    case SDLK_S:
-                        scanner->set_altchrset();
-                        break;
-                    
-                    case SDLK_X:
+                    case SDLK_Z:
                         scanner->reset_altchrset();
                         break;
                     
-                    case SDLK_Z:
+                    case SDLK_S:
+                        scanner->set_mixed();
+                        break;
+                    
+                    case SDLK_X:
                         scanner->set_full();
                         break;
                     
                     case SDLK_P:
                         sharpness = (sharpness + 1) % 3;
-                        SDL_SetTextureScaleMode(stage2, scales[sharpness]);
+                        SDL_SetTextureScaleMode(fr_vsg->get_texture(), scales[sharpness]);
+                        
                         //SDL_SetTextureScaleMode(txt_shr, scales[sharpness]);
                         printf("Sharpness: %d\n", sharpness);
                         break;
@@ -643,6 +601,10 @@ int main(int argc, char **argv) {
                         border_is_vc = !border_is_vc;
                         break;
         
+                    case SDLK_C: // toggle dhr mono mode
+                        vsg->set_dhgr_mono_mode(!vsg->get_dhgr_mono_mode());
+                        vsgc->set_dhgr_mono_mode(!vsgc->get_dhgr_mono_mode());
+                        break;
                     case SDLK_F:
                         fg = (fg + 1) & 0x0F;
                         scanner->set_text_fg(fg);
@@ -660,189 +622,208 @@ int main(int argc, char **argv) {
                     case SDLK_F1:
                         scanner_choice = SCANNER_II;
                         vsg->set_display_shift(false);
-                        rgb_render.set_shift_enabled(false);
+                        vsgc->set_display_shift(false);
                         ntsc_render.set_shift_enabled(false);
                         monochrome.set_shift_enabled(false);
-                        calculate_border_rects(&ds, false);
-                        //print_border_rects();
+
+                        frame_moved = true;
                         printf("Scanner choice: II\n");
                         break;
                     
                     case SDLK_F2:
                         scanner_choice = SCANNER_IIE;
                         vsg->set_display_shift(true);
-                        rgb_render.set_shift_enabled(true);
+                        vsgc->set_display_shift(true);
                         ntsc_render.set_shift_enabled(true);
                         monochrome.set_shift_enabled(true);
-                        calculate_border_rects(&ds, true);
-//                        print_border_rects();
+
+                        frame_moved = true;
                         printf("Scanner choice: IIe\n");
                         break;
                     
                     case SDLK_F3:
                         scanner_choice = SCANNER_IIGS;
                         vsg->set_display_shift(false);
-                        rgb_render.set_shift_enabled(false);
+                        vsgc->set_display_shift(false);
                         ntsc_render.set_shift_enabled(false);
                         monochrome.set_shift_enabled(false);
-                        calculate_border_rects(&ds, false);
-                        //print_border_rects();
+
+                        frame_moved = true;
                         printf("Scanner choice: IIgs\n");
-                        break;                
+                        break;
+                    case SDLK_SPACE:
+                        frame_moved = true;
+                        if (event.key.mod & SDL_KMOD_SHIFT) {
+                            cycle_mode = 2;
+                        } else if (event.key.mod & SDL_KMOD_LALT) {
+                            cycle_mode = 3;
+                        } else if (event.key.mod & SDL_KMOD_RALT) {
+                            cycle_mode = 4;
+                        } else {
+                            cycle_mode = 1;
+                        }
+                        break;
+                    case SDLK_LEFT:
+                        if (event.key.mod & SDL_KMOD_SHIFT) hsize -= 2;
+                        else hpos += 2;
+                        frame_moved = true;
+                        break;
+                    case SDLK_RIGHT:
+                        if (event.key.mod & SDL_KMOD_SHIFT) hsize += 2;
+                        else hpos -= 2;
+                        frame_moved = true;
+                        break;
+                    case SDLK_UP:
+                        if (event.key.mod & SDL_KMOD_SHIFT) vsize -= 2;
+                        else vpos += 2;
+                        frame_moved = true;
+                        break;
+                    case SDLK_DOWN:
+                        if (event.key.mod & SDL_KMOD_SHIFT) vsize += 2;
+                        else vpos -= 2;
+                        frame_moved = true;
+                        break;
+                    case SDLK_HOME:
+                        hsize = 0; vsize = 0;
+                        hpos = 0; vpos = 0;
+                        
+                        frame_moved = true;
+                        break;
+                    case SDLK_END:
+                        printf("hsize: %d vsize: %d hpos: %d vpos: %d\n", hsize, vsize, hpos, vpos);
+                        break;
                 }
                 printf("key pressed: %d\n", event.key.key);
             }
         }
 
-        
         int phaseoffset = 1; // now that I start normal (40) display at pixel 7, its phase is 1 also. So, both 40 and 80 display start at phase 1 now.
-        ScanBuffer *frame_scan = nullptr;
-
+        ScanBuffer *scanbuf = nullptr;
+        
         /* exactly one frame worth of video cycles */
-        for (int vidcycle = 0; vidcycle < 17030; vidcycle++) {
-            // hard-code a "cycle timed video switch" splitting screen into half hires and half lores
-            /* if (vidcycle < 17030/2) {
-                video_scanner_iie->set_hires();
-                video_scanner_iie->set_page_2();
-            } else {
-                video_scanner_iie->set_lores();
-                video_scanner_iie->set_page_1();
+        if (cycle_mode) {
+            int num_cycles;
+            switch (cycle_mode) {
+                case 1:
+                    num_cycles = 1;
+                    break;
+                case 2:
+                    num_cycles = 65;
+                    break;
+                case 3:
+                case 4:
+                    // these should sync up partial frame so frame after is fully correct.
+                    num_cycles = 17030;
+                    break;
             }
-            if (vidcycle % 5 < 2) { // every 5 cycles will create columns on the screen of different video modes.
-                video_scanner_iie->set_hires();
-                video_scanner_iie->set_page_2();
-            } else {
-                video_scanner_iie->set_lores();
-                video_scanner_iie->set_page_1();
-            }  */
-            if ((rolling_border) && (++border_cycles == 650)) {
-                border_color = (border_color + 1) & 0x0F;
-                fg = (fg + 1) & 0x0F;
-                bg = (bg + 1) & 0x0F;
-                scanner->set_text_fg(fg);
-                scanner->set_text_bg(bg);
-                scanner->set_border_color(border_color);
+            for (int i = 0; i < num_cycles; i++) {
 
-                border_cycles = 0;
+                if ((rolling_border) && (border_cycles == 13)) {
+                    border_color = (border_color + 1) & 0x0F;
+                    fg = (fg + 1) & 0x0F;
+                    bg = (bg + 1) & 0x0F;
+                    scanner->set_text_fg(fg);
+                    scanner->set_text_bg(bg);
+                    scanner->set_border_color(border_color);
+                }
+                border_cycles++;
+                if (border_cycles == 650) {
+                    border_cycles = 0;
+                }
+                if (border_is_hc) {
+                    border_color = (vidcycle % 65) & 0x0F;
+                    scanner->set_border_color(border_color);
+                }
+                if (border_is_vc) {
+                    border_color = (vidcycle / 65) & 0x0F;
+                    scanner->set_border_color(border_color);
+                }
+       
+                scanner->video_cycle();
+            
+                vidcycle++;
+                if (vidcycle == 17030) {
+                    vidcycle = 0;
+                }
             }
-            if (border_is_hc) {
-                border_color = (vidcycle % 65) & 0x0F;
-                scanner->set_border_color(border_color);
-            }
-            if (border_is_vc) {
-                border_color = (vidcycle / 65) & 0x0F;
-                scanner->set_border_color(border_color);
-            }
-    
-            scanner->video_cycle();
+            if (cycle_mode != 4) cycle_mode = 0;
         }
-        // now convert frame_scan to frame_byte
-        frame_scan = scanner->get_frame_scan();
+        // now convert scanbuf to frame_byte
+        scanbuf = scanner->get_frame_scan();
 
         start = SDL_GetTicksNS();
-        
-        if ((scanner_choice == SCANNER_II) || (scanner_choice == SCANNER_IIE)) {
-            if (generate_mode < 7) {
-                vsg->generate_frame(
-                    frame_scan, 
-                    frame_byte, 
-                    nullptr,
-                    nullptr
-                );
-                //frame_byte->print();
-                fr_apple2->open();
-                switch (render_mode) {
-                    case 1:
-                        monochrome.render(frame_byte, fr_apple2, RGBA_t::make(0x00, 0xFF, 0x00, 0xFF));
-                        break;
-                    case 2:
-                        ntsc_render.render(frame_byte, fr_apple2, RGBA_t::make(0xFF, 0xFF, 0xFF, 0xFF) ); // no-color color is white.
-                        break;
-                    case 3:
-                        rgb_render.render(frame_byte, fr_apple2, RGBA_t::make(0x00, 0xFF, 0x00, 0xFF)  );
-                        break;
-                }
-                fr_apple2->close();
-            }
-        } else {
-            fr_border->open();
-            fr_shr->open();
-            vsg->generate_frame(
-                frame_scan, 
-                frame_byte, 
-                fr_border,
-                fr_shr
-            );
-            if (generate_mode < 7) {
-                fr_apple2->open();
-                switch (render_mode) {
-                    case 1:
-                        monochrome.render(frame_byte, fr_apple2, RGBA_t::make(0x00, 0xFF, 0x00, 0xFF));
-                        break;
-                    case 2:
-                        ntsc_render.render(frame_byte, fr_apple2, RGBA_t::make(0xFF, 0xFF, 0xFF, 0xFF) ); // no-color color is white.
-                        break;
-                    case 3:
-                        rgb_render.render(frame_byte, fr_apple2, RGBA_t::make(0x00, 0xFF, 0x00, 0xFF)  );
-                        break;
-                }
-                fr_apple2->close();
-            }
 
-            fr_shr->close();
-            fr_border->close();
+        // if we are doing partial frame update (e.g., one cycle, or one scanline) we need to read the texture data back into frame.
+        if (cycle_mode != 3 && cycle_mode != 4) {
+            SDL_SetRenderTarget(renderer, stage2);
+            if (!SDL_RenderTexture(renderer, fr_vsg->get_texture(), nullptr, nullptr)) assert(false);
+
+            SDL_Rect irect = { 0, 0, 910, 263 };
+            SDL_Surface *surface = SDL_RenderReadPixels(renderer, &irect);
+            SDL_SetRenderTarget(renderer, nullptr);
+            fr_vsg->open();
+            memcpy(fr_vsg->data(), surface->pixels, 910 * 263 * sizeof(RGBA_t));
+            
+            if (render_mode == 3) vsg->generate_frame(scanbuf);
+            else vsgc->generate_frame(scanbuf);
+            
+            fr_vsg->close();
+            SDL_DestroySurface(surface);
+        } else {
+            // generate new pixmap and update texture all in one.. or just do a partial update, and, copy updated data back into texture.
+            fr_vsg->open();
+            if (render_mode == 3) vsg->generate_frame(scanbuf);
+            else vsgc->generate_frame(scanbuf);
+            fr_vsg->close();
+        }
+
+        // Content rectangles for use with VSG2
+        constexpr SDL_FRect content_rec_vsg2[3][2] = {
+            //{ { 84.0, 12.0, 560+168, 240.0 }, { 0.0, 0.0,0.0,0.0 } }, // no shr here
+            //{ { 168.0, 34.0, 560, 192.0 }, { 0.0, 0.0,0.0,0.0 } }, // this is exactly our bounding box.
+            
+            // II / II+
+            { { 168.0-42, 35.0-19, 560+42+42, 192.0+19+21 }, { 0.0, 0.0,0.0,0.0 } },
+            
+            // IIe - is slightly (7 pixels) wider.
+            { { 168.0-42, 35.0-19, 560+42+42, 192.0+19+21 }, { 0.0, 0.0,0.0,0.0 } },
+            //{ { 168.0-42-7, 34.0-20, 560+42+42, 192.0+20+20 }, { 0.0, 0.0,0.0,0.0 } },  // use something like this later for composite vsg
+            
+            // IIgs            
+            // { { 0.0, 0.0, 910, 263.0 }, { 0.0, 2.0, 1040, 263.0 } }, // entire content area
+            { { 168.0-42, 35.0-19, 560+42+42, 192.0+19+29 }, { 192.0-48.0, 35.0-19.0, 640.0+48+48, 200+19+21.0 } },
+        };
+
+        /*
+         What we want here is:
+         x and y offset
+         w and h scale - positive number adds that many pixels on the left and right; negative subtracts. 
+        */
+
+        if (frame_moved) {
+            int shr_index = (generate_mode >= 7) ? 1 : 0;
+            ii_frame_src = content_rec_vsg2[scanner_choice-1][shr_index];
+            ii_frame_src.x += (float)hpos-hsize;
+            ii_frame_src.y += (float)vpos-vsize;
+            ii_frame_src.w += (float)hsize*2;
+            ii_frame_src.h += (float)vsize*2;
 
         }
-    
+
+        // the destination is where the texture is positioned in window.
+
         // clear backbuffer
+        //SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
         SDL_RenderClear(renderer);
 
-        constexpr SDL_FRect ii_frame_src = { 0.0, 0.0, 560.0f+42+49, 232.0 };
-        constexpr SDL_FRect gs_ii_frame_src = { 0.0, 0.0, 651.0, 232.0}; // dst is null - "scale to whatever" 651 is weird but that's the number.. 
-        constexpr SDL_FRect gs_shr_frame_src = { 0.0, 0.0, 744.0, 232.0}; // dst is null - "scale to whatever"
-
-        // draw some border
-        if (scanner_choice == SCANNER_IIGS) {
-            bool video_mode_is_shr = (generate_mode >= 7);
-            border_rect_array_t &modes_rects = (video_mode_is_shr) ? ds.shr_borders : ds.ii_borders;
-
-            // compose at 1:1 scale to a stage2 texture.
-            SDL_SetRenderTarget(renderer, stage2);
-            SDL_RenderClear(renderer);
-
-            SDL_RenderTexture(renderer, txt_border, &modes_rects[B_TOP][B_LT].src, &modes_rects[B_TOP][B_LT].dst); // top left
-            SDL_RenderTexture(renderer, txt_border, &modes_rects[B_TOP][B_CEN].src, &modes_rects[B_TOP][B_CEN].dst); // top
-            SDL_RenderTexture(renderer, txt_border, &modes_rects[B_TOP][B_RT].src, &modes_rects[B_TOP][B_RT].dst); // top right
-
-            SDL_RenderTexture(renderer, txt_border, &modes_rects[B_CEN][B_LT].src, &modes_rects[B_CEN][B_LT].dst); // left
-            SDL_RenderTexture(renderer, txt_border, &modes_rects[B_CEN][B_RT].src, &modes_rects[B_CEN][B_RT].dst); // right
-        
-            SDL_RenderTexture(renderer, txt_border, &modes_rects[B_BOT][B_LT].src, &modes_rects[B_BOT][B_LT].dst); // bottom left
-            SDL_RenderTexture(renderer, txt_border, &modes_rects[B_BOT][B_CEN].src, &modes_rects[B_BOT][B_CEN].dst); // bottom
-            SDL_RenderTexture(renderer, txt_border, &modes_rects[B_BOT][B_RT].src, &modes_rects[B_BOT][B_RT].dst); // bottom right
-            
-            // Copy the content texture in
-            if (video_mode_is_shr) {
-                SDL_RenderTexture(renderer, txt_shr, &modes_rects[B_CEN][B_CEN].src, &modes_rects[B_CEN][B_CEN].dst);
-            } else {
-                // draw over border but shiftable portions need to be alpha'd with border color.
-                SDL_RenderTexture(renderer, txt_apple2, &modes_rects[B_CEN][B_CEN].src, &modes_rects[B_CEN][B_CEN].dst);                
-            }
-            SDL_SetRenderTarget(renderer, nullptr);
-
-            SDL_ScaleMode scale_mode;
-            SDL_GetTextureScaleMode(stage2, &scale_mode);
-            assert(true);
-            SDL_RenderTexture(renderer, stage2, (video_mode_is_shr) ? &gs_shr_frame_src : &gs_ii_frame_src, nullptr);
-
-        } else {
-            // maybe stage2 this also? 
-            SDL_SetRenderTarget(renderer, stage2);
-            SDL_RenderClear(renderer);
-            SDL_RenderTexture(renderer, txt_apple2, &ds.ii_borders[B_CEN][B_CEN].src, &ds.ii_borders[B_CEN][B_CEN].dst); 
-            SDL_SetRenderTarget(renderer, nullptr);
-            SDL_RenderTexture(renderer, stage2, &ii_frame_src, nullptr);
+        //if (!SDL_RenderTexture(renderer, stage2, &ii_frame_src, &ii_frame_dst)) {
+        if (!SDL_RenderTexture(renderer, fr_vsg->get_texture(), &ii_frame_src, nullptr)) {
+            printf("Failed to render stage2 texture: %s\n", SDL_GetError());
         }
+        static char txt[100];
+        snprintf(txt, 100, "%02dV %02dH", vsg->get_v(), vsg->get_h());
+        SDL_RenderDebugText(renderer, 10, 220, txt);
 
         // Emit!
         SDL_RenderPresent(renderer);      

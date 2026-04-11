@@ -310,11 +310,15 @@ add_library(gs2_message_bus src/mbus/MessageBus.cpp)
 add_library(gs2_paths src/paths.cpp)
 
 add_library(gs2_video_scanner 
+    src/devices/displaypp/ScanBuffer.cpp
     src/devices/displaypp/VideoScannerII.cpp 
-    src/devices/displaypp/VideoScanGenerator.cpp 
     src/devices/displaypp/VideoScannerIIe.cpp 
     src/devices/displaypp/VideoScannerIIePAL.cpp 
-    src/devices/displaypp/VideoScannerIIgs.cpp)
+    src/devices/displaypp/VideoScannerIIgs.cpp
+    src/devices/displaypp/VideoScanGenerator.cpp 
+    src/devices/displaypp/VideoScanGenerator_Comp.cpp
+    src/devices/displaypp/VideoScanGenerator_RGB.cpp
+    )
 
 add_library(gs2_devices_rtc_pram src/devices/rtc/rtc_pram.cpp)
 
@@ -411,7 +415,7 @@ add_subdirectory(apps/montest)
 
 add_subdirectory(apps/cycletest)
 
-add_subdirectory(apps/dpp)
+#add_subdirectory(apps/dpp)
 add_subdirectory(apps/vpp)
 
 add_subdirectory(apps/iieromcsum)

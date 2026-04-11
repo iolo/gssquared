@@ -87,6 +87,15 @@
             "preLaunchTask": "build-debug"
         },
         {
+            "name": "Debug vpp2",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/vpp2",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "build-debug"
+        },
+        {
             "name": "Debug speaker",
             "type": "lldb",
             "request": "launch",
