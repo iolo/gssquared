@@ -30,17 +30,17 @@ void StatusMessage_t::render() {
 
     // should probably assume 1:1 scale in all the things, only save/restore on the whole OSD entry / exit.
     float ox,oy;
-    SDL_GetRenderScale(ctx->renderer, &ox, &oy);
+    //SDL_GetRenderScale(ctx->renderer, &ox, &oy);
 
     // Display this regardless of OSD state.
-    SDL_SetRenderScale(ctx->renderer, 1,1); // TODO: calculate these based on window size
+    //SDL_SetRenderScale(ctx->renderer, 1,1); // TODO: calculate these based on window size
     if (headsUpMessageCount) { // set it to 512 for instance to sit at full opacity for 4 seconds then fade out over 4ish seconds.    
         SDL_SetRenderTarget(ctx->renderer, nullptr);
         int opacity = headsUpMessageCount < 255 ? headsUpMessageCount : 255;
         ctx->text_render->set_color(0xFF, 0xFF, 0xFF, opacity);
         ctx->text_render->render(headsUpMessageText, msg_x, 30, TEXT_ALIGN_CENTER);
     }
-    SDL_SetRenderScale(ctx->renderer, ox,oy);
+    //SDL_SetRenderScale(ctx->renderer, ox,oy);
     
 }
 

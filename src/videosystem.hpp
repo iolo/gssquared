@@ -55,6 +55,8 @@ struct video_system_t {
     display_mono_color_t display_mono_color = DM_MONO_GREEN;
     display_pixel_mode_t display_pixel_mode = DM_PIXEL_FUZZ;
 
+    SDL_FRect target = { 0.0f, 0.0f, 0.0f, 0.0f };
+
     int border_width = BORDER_WIDTH;
     int border_height = BORDER_HEIGHT;
     float aspect_ratio = 0.0;
@@ -83,6 +85,10 @@ struct video_system_t {
         RGBA_t::make(0xFF, 0xBF, 0x00)  // amber
     };
 
+protected:
+    void calculate_target_rect(int new_w, int new_h);
+    
+public:
     video_system_t(computer_t *computer);
     ~video_system_t();
     void set_window_title(const char *title);

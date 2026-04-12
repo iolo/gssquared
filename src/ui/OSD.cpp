@@ -679,10 +679,10 @@ void OSD::render() {
     
     // save the current rendering scale
     float ox,oy;
-    SDL_GetRenderScale(renderer, &ox, &oy);
+    //SDL_GetRenderScale(renderer, &ox, &oy);
 
     // assume everything in this routine is drawn at 1:1 scale.
-    SDL_SetRenderScale(renderer, 1.0,1.0); // TODO: calculate these based on window size
+    //SDL_SetRenderScale(renderer, 1.0,1.0); // TODO: calculate these based on window size
 
     /** if current Status is out, don't draw. If status is in transition or IN, draw. */
     if (currentSlideStatus == SLIDE_IN || (slideStatus && (currentSlideStatus != slideStatus))) {
@@ -783,7 +783,7 @@ void OSD::render() {
     renderMenuOverlay(renderer, window_width, window_height);
 
     // Restore scale
-    SDL_SetRenderScale(renderer, ox,oy);
+    //SDL_SetRenderScale(renderer, ox,oy);
     // set draw color to black - why?
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 

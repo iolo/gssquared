@@ -475,9 +475,10 @@ bool update_display_apple2_cycle(display_state_t *ds) {
     // render screenTexture to stage2
     // this is double copying, but is the same process as the GS display code, and makes screen capture work. Adds about 10uS to display_time.
     //SDL_SetRenderTarget(vs->renderer, ds->stage2);
-    if (!SDL_RenderTexture(vs->renderer, ds->frame_vsg->get_texture(), &ds->ii_frame_src, nullptr)) {
+    ds->video_system->render_frame(ds->frame_vsg->get_texture(), &ds->ii_frame_src, nullptr);
+/*     if (!SDL_RenderTexture(vs->renderer, ds->frame_vsg->get_texture(), &ds->ii_frame_src, nullptr)) {
         printf("Failed to render stage2 texture: %s\n", SDL_GetError());
-    }
+    } */
     ////SDL_RenderTexture(vs->renderer, ds->screenTexture, &ds->ii_borders[B_CEN][B_CEN].src, &ds->ii_borders[B_CEN][B_CEN].src);
     //SDL_SetRenderTarget(vs->renderer, nullptr);
 

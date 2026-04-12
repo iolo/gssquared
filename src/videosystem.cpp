@@ -3,6 +3,7 @@
 #include "videosystem.hpp"
 #include "display/display.hpp"
 #include "ui/Clipboard.hpp"
+#include <cmath>
 
 video_system_t::video_system_t(computer_t *computer) {
 
@@ -19,6 +20,7 @@ video_system_t::video_system_t(computer_t *computer) {
     display_fullscreen_mode = DISPLAY_WINDOWED_MODE;
     event_queue = computer->event_queue;
 
+    // TODO: calculate an initial window size that will get us an integral scale starting out.
     window_width = (BASE_WIDTH + border_width*2) * SCALE_X;
     window_height = (BASE_HEIGHT + border_height*2) * SCALE_Y;
     aspect_ratio = (float)window_width / (float)window_height;
@@ -57,7 +59,7 @@ video_system_t::video_system_t(computer_t *computer) {
     printf("Renderer: %s\n", rname);
 
     // Set scaling quality to nearest neighbor for sharp pixels
-    SDL_SetRenderScale(renderer, SCALE_X, SCALE_Y);
+    //SDL_SetRenderScale(renderer, SCALE_X, SCALE_Y);
 
     // Clear the texture to black
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -66,6 +68,8 @@ video_system_t::video_system_t(computer_t *computer) {
     force_full_frame_redraw = true; // first time through!
 
     SDL_RaiseWindow(window);
+
+    calculate_target_rect(window_width, window_height);
 
     computer->dispatch->registerHandler(SDL_EVENT_WINDOW_RESIZED, [this](const SDL_Event &event) {
         window_resize(event);
@@ -139,10 +143,10 @@ void video_system_t::render_frame(SDL_Texture *texture, SDL_FRect *srcrect, SDL_
             SDL_SetTextureScaleMode(texture,  SDL_SCALEMODE_PIXELART); // SDL_SCALEMODE_NEAREST
         }
     }
-    SDL_FRect dstrect_shifted = *dstrect;
-    dstrect_shifted.x += fullscreen_x_shift; // center in fullscreen.
+   /*  SDL_FRect dstrect_shifted = *dstrect;
+    dstrect_shifted.x += fullscreen_x_shift; // center in fullscreen. */
 
-    SDL_RenderTexture(renderer, texture, srcrect, &dstrect_shifted);
+    SDL_RenderTexture(renderer, texture, srcrect, &target /* &dstrect_shifted */);
     last_texture = texture;
     last_srcrect = *srcrect;
 }
@@ -166,6 +170,7 @@ void video_system_t::show(SDL_Window *window) {
     SDL_ShowWindow(window);
 }
 
+#if 0
 void video_system_t::window_resize(const SDL_Event &event) {
     // make sure this event is for the primary window.
     if (event.window.windowID != SDL_GetWindowID(window)) {
@@ -198,6 +203,45 @@ void video_system_t::window_resize(const SDL_Event &event) {
     if (display_fullscreen_mode) { // shift the coords to center the image.        
         fullscreen_x_shift = (((float)window_width / scale_x) - (42+49+560)) / 2.0f;
     } else fullscreen_x_shift = 0.0f;
+}
+#endif
+
+void video_system_t::calculate_target_rect(int new_w, int new_h) {
+    float new_aspect = (float)new_w / new_h;
+    constexpr float aspect_epsilon = 0.001f;
+    if (std::fabs(new_aspect - aspect_ratio) <= aspect_epsilon) {
+        printf("aspect match ");   
+        // how accurate will a float be here?
+        target.w = new_w;
+        target.h = new_h;
+        target.x = 0.0f;
+        target.y = 0.0f;
+    } else if (new_aspect > aspect_ratio) { 
+        printf("aspect wide ");
+        // wider than our aspect ratio.
+        target.h = new_h;
+        target.w = (float) new_h * aspect_ratio;        
+        target.y = 0.0f;
+        target.x = ((float)new_w - target.w) / 2.0f;
+    } else {
+        // narrower than our aspect ratio.
+        printf("aspect tall ");
+        target.w = new_w;
+        target.h = (float) new_w / aspect_ratio;
+        target.x = 0.0f;
+        target.y = ((float)new_h - target.h) / 2.0f;
+    }
+    printf("calculate_target_rect: (%f, %f) [%f x %f] @ %f\n", target.x, target.y, target.w, target.h, (float)target.w/target.h);
+}
+
+void video_system_t::window_resize(const SDL_Event &event) {
+    if (event.window.windowID != SDL_GetWindowID(window)) {
+        return;
+    }
+    calculate_target_rect(event.window.data1, event.window.data2);
+/*     int new_w = event.window.data1;
+    int new_h = event.window.data2; */
+    
 }
 
 display_fullscreen_mode_t video_system_t::get_window_fullscreen() {

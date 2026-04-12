@@ -11444,7 +11444,7 @@ ok next thing to do here:
 Display should have a routine to set up the modes: 
    rgb, ntsc, mono (with colors)
 
-[ ] full screen is wrong aspect ratio because I'm now writing to nullptr (i.e. no target dimensions)  
+[x] full screen is wrong aspect ratio because I'm now writing to nullptr (i.e. no target dimensions)  
 [ ] make shr work again in Comp.  
 
 So, if I wanted to support monochrome mode cycle-accurate, I would need to track the value of the register and pass it into VideoGenerator. I'm not sure I have any bits left! I do sort of want to know if I can stuff an extra chunk.. I just had an interesting idea, which is only when I need it I can have the extra 32-bits of GS stuff just be an extra message. i.e. when we read a palette command, we then also read another 32-bits which is the palette data, but don't otherwise do that (so we're not wasting 64 bits for every cycle). This should reduce cache contention.
@@ -11466,3 +11466,12 @@ alternative:
 on a GS I feel like using the RGB engine is closer to the real thing, because the GS generates the RGB signal then generates composite from that. 
 
 [ ] mono-dhgr should work for all graphics when C05E active. i.e., also the HIRES_NODELAY.
+
+ok so now we need to fix fullscreen. A window will be in one of three configurations:
+1. matching our target aspect ratio
+2. wider than our aspect ratio
+3. narrower than our aspect ratio.
+
+if 1, we're fine. can draw will null rect.
+if 2, we need to calculate new scale based on aspect and Y.
+if 3, we need to calculate new scale based on aspect and X.
