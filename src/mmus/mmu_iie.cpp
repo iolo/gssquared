@@ -75,6 +75,7 @@ void MMU_IIe::reset() {
     f_intcxrom = false;
     f_slotc3rom = false;
     compose_c1cf();
+    // reset page2 handled by iiememory device
 }
 
 void iie_mmu_handle_C00X_write(void *context, uint32_t address, uint8_t value) {
