@@ -748,10 +748,11 @@ void set_lores(display_state_t *ds) {
 uint8_t txt_bus_read_C056(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
     // set lo-res (graphics) mode
-    if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Lo-Res Mode\n");
-    /* set_graphics_mode(ds, LORES_MODE);
+    /* if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Lo-Res Mode\n");
+     set_graphics_mode(ds, LORES_MODE);
     if (!ds->framebased) ds->video_scanner->set_lores();
     ds->video_system->set_full_frame_redraw(); */
+    set_lores(ds);
     return ds->mmu->floating_bus_read();
 }
 
@@ -1550,7 +1551,7 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
             // C021 MONOCOLOR
             display_write_C021(ds, 0xC021, 0x00);
         }
-        if (ds->computer->platform->id >= PLATFORM_APPLE_IIE) {
+        if (ds->computer->platform->id >= PLATFORM_APPLE_IIE) { // iie and GS share these..
             // TEXT/GRAPHICS: no change.
             // MIXED: no change.
 
@@ -1566,16 +1567,15 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
             ds->video_scanner->reset_altchrset();
             ds->a2_display->set_char_set(ds->f_altcharset);
             
+            // set page2 off. make sure also in mmu
+            reset_page2(ds);
+            //ds->mmu->write(0xC054, 0x00); // also hacky
+        }
+        if (ds->computer->platform->id < PLATFORM_APPLE_IIGS) { // iie and below only
             // C05E: set ANC3 to 7M video mode. "set dblres" is opposite sense of ANC3 OFF.
             ds->f_double_graphics = true;
             ds->video_scanner->set_dblres();
             
-            // set page2 off. make sure also in mmu
-            reset_page2(ds);
-            //ds->mmu->write(0xC054, 0x00); // also hacky
-
-        }
-        if (ds->computer->platform->id < PLATFORM_APPLE_IIGS) { // iie and below only
             // LORES: switch reset
             set_lores(ds);
 /*             ds->display_graphics_mode = LORES_MODE; // TODO: is this also on a II+?           
