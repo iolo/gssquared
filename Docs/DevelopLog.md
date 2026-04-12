@@ -11433,6 +11433,36 @@ Hm I am overrunning my buffer. in shr with border effects the border is overrunn
 
 ok, did I deal with all the new bugs? I want to push! it's ok, push it now and do some cleanups.
 
+## Apr 12, 2026
+
+[ ] look into the registers that live in the FPI because those should be fast (not 1mhz).
+
+Got these and they're now documneted in [AppleIIgs](AppleIIgs.md). Textfunk is not using any of these in the timing critical area. So my textfunk timing issue is elsewhere. Could still have some CPU instructions that work at the wrong speed, I didn't finish writing those tests.
+
+ok next thing to do here:
 
 Display should have a routine to set up the modes: 
    rgb, ntsc, mono (with colors)
+
+[ ] full screen is wrong aspect ratio because I'm now writing to nullptr (i.e. no target dimensions)  
+[ ] make shr work again in Comp.  
+
+So, if I wanted to support monochrome mode cycle-accurate, I would need to track the value of the register and pass it into VideoGenerator. I'm not sure I have any bits left! I do sort of want to know if I can stuff an extra chunk.. I just had an interesting idea, which is only when I need it I can have the extra 32-bits of GS stuff just be an extra message. i.e. when we read a palette command, we then also read another 32-bits which is the palette data, but don't otherwise do that (so we're not wasting 64 bits for every cycle). This should reduce cache contention.
+
+Composite we can simulate monochrome by setting the saturation to 0. this incurs no extra overhead over the current routines. If I precalculate a LUT for mono we will not even have to do the saturation trick and don't have to recalculate anything. Eventually both of these would trivial with a shader. 
+
+on GS, composite means:
+    borders!
+    in text mode, gray (no colorburst)
+    in any graphics mode, colorburst.
+    if mono flag is set, everything is gray.
+The shortest cut is to use the RGB engine but gray it. Also a separate flag for "mono text" so we get the correct behavior there.
+
+alternative:
+    add border support to comp
+    add color text support back to comp
+    we do set colorburst flag. So in the ntsc renderer, perform mono conversion there based on that flag. that might capture changing colorburst mid-frame.
+
+on a GS I feel like using the RGB engine is closer to the real thing, because the GS generates the RGB signal then generates composite from that. 
+
+[ ] mono-dhgr should work for all graphics when C05E active. i.e., also the HIRES_NODELAY.

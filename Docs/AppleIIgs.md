@@ -219,7 +219,10 @@ Fundamentally, you need to implement 3 clocks - a fast clock, a slow clock with 
 
 There's even some code of clocking implementation from CrossRunner.
 
-
+Some I/O locations are FAST even though they're in the I/O space, because they're in the FPI and MegaII and reads are from FPI:
+Ok, I can confirm that for reads $35,$36,$37,$2D,$68,$71-$7F are all fast. $69-$70 are all slow.
+For writes only $35,$36,$37 are fast. Everything else is slow. (edited)
+that's: SHADOW, CYRREG, DMA, SLTROMSEL, STATE, rom interrupt code jump table (these are rom addresses after all).
 
 ## Game I/O
 

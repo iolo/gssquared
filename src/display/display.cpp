@@ -307,7 +307,8 @@ void set_display_page2(display_state_t *ds) {
  * This is effectively a "redraw the entire screen each frame" method now.
  * With an optimization only update dirty lines.
  */
-bool update_display_apple2(display_state_t *ds) {
+
+bool update_display_apple2x(display_state_t *ds) {
 #if 0
     video_system_t *vs = ds->video_system;
 
@@ -441,25 +442,26 @@ bool update_display_apple2_cycle(display_state_t *ds) {
 
     ScanBuffer *scanbuf = ds->video_scanner->get_frame_scan();
 
-#if 0
-    ds->vsg->generate_frame(frame_scan/* , ds->frame_bits */);
-    ds->frame_rgba->open();
+    // TODO: This stuff takes basically no time, but it might make more sense to encap this in a helper routine
+    // somewhere else.
     switch (vs->display_color_engine) {
         case DM_ENGINE_MONO:
+            ds->vsg = ds->vsgc;
             ds->mon_mono.set_mono_color(vs->get_mono_color());
-            ds->mon_mono.render(ds->frame_bits, ds->frame_rgba);
+            ds->vsg->set_render(&ds->mon_mono);
             break;
         case DM_ENGINE_NTSC:
-            ds->mon_ntsc.render(ds->frame_bits, ds->frame_rgba, RGBA_t::make(0xFF, 0xFF, 0xFF, 0xFF)  /* , 1 */);
+            ds->vsg = ds->vsgc;
+            ds->mon_mono.set_mono_color(RGBA_t::make(0xFF, 0xFF, 0xFF, 0xFF)); // white
+            ds->vsg->set_render(&ds->mon_ntsc);
             break;
         case DM_ENGINE_RGB: // we send a green value here but mon_rgb does not use it.
-            ds->mon_rgb.render(ds->frame_bits, ds->frame_rgba, RGBA_t::make(0x00, 0xFF, 0x00, 0xFF) /* , 1 */);
+            ds->vsg = ds->vsgr;
             break;
         default:
-            break;
+            assert(false && "Invalid display color engine");
     }
-    ds->frame_rgba->close();
-#endif
+
     ds->frame_vsg->open();
     ds->vsg->generate_frame(scanbuf);
     ds->frame_vsg->close();
@@ -485,6 +487,14 @@ bool update_display_apple2_cycle(display_state_t *ds) {
         &ds->ii_borders[B_CEN][B_CEN].dst
     ); */
 
+    return true;
+}
+
+bool update_display_apple2(display_state_t *ds) {
+    for (int i = 0; i < 17030; i++) {
+        ds->video_scanner->video_cycle();
+    }
+    update_display_apple2_cycle(ds);
     return true;
 }
 
@@ -943,6 +953,27 @@ void display_write_C029(void *context, uint32_t address, uint8_t value) {
     } else {
         ds->vsg->set_dhgr_mono_mode(false);
     }
+}
+
+/**
+ * IIgs MONOCOLOR register
+ */
+
+
+uint8_t display_read_C021(void *context, uint32_t address) {
+    display_state_t *ds = (display_state_t *)context;
+    // not sure what to return here.
+}
+
+void display_write_C021(void *context, uint32_t address, uint8_t value) {
+    display_state_t *ds = (display_state_t *)context;
+    if (value & 0x80) { 
+        // enable mono
+        ds->vsg->set_mono_mode(true);
+    } else {
+        ds->vsg->set_mono_mode(false);
+    }
+    
 }
 
 /**
@@ -1536,6 +1567,8 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
 
         mmu->set_C0XX_read_handler(0xC02E, { display_read_C02EF, ds });
         mmu->set_C0XX_read_handler(0xC02F, { display_read_C02EF, ds });
+        mmu->set_C0XX_read_handler(0xC021, { display_read_C021, ds });
+        mmu->set_C0XX_write_handler(0xC021, { display_write_C021, ds });
 
         mmu->set_C0XX_read_handler(0xC029, { display_read_C029, ds });
         mmu->set_C0XX_write_handler(0xC029, { display_write_C029, ds });
