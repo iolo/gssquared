@@ -700,19 +700,28 @@ void txt_bus_write_C053(void *context, uint32_t address, uint8_t value) {
     txt_bus_read_C053(context, address);
 }
 
-
-uint8_t txt_bus_read_C054(void *context, uint32_t address) {
-    display_state_t *ds = (display_state_t *)context;
+void reset_page2(display_state_t *ds) {
     // switch to screen 1
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Switching to screen 1\n");
     set_display_page1(ds);
     if (!ds->framebased) ds->video_scanner->set_page_1();
-    ds->video_system->set_full_frame_redraw();
+    ds->video_system->set_full_frame_redraw();   
+}
+
+uint8_t txt_bus_read_C054(void *context, uint32_t address) {
+    display_state_t *ds = (display_state_t *)context;
+    // switch to screen 1
+    reset_page2(ds);
+/*     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Switching to screen 1\n");
+    set_display_page1(ds);
+    if (!ds->framebased) ds->video_scanner->set_page_1();
+    ds->video_system->set_full_frame_redraw(); */
     return ds->mmu->floating_bus_read();
 }
 
 void txt_bus_write_C054(void *context, uint32_t address, uint8_t value) {
-    txt_bus_read_C054(context, address);
+    reset_page2((display_state_t *)context);
+/*     txt_bus_read_C054(context, address); */
 }
 
 uint8_t txt_bus_read_C055(void *context, uint32_t address) {
@@ -729,19 +738,26 @@ void txt_bus_write_C055(void *context, uint32_t address, uint8_t value) {
     txt_bus_read_C055(context, address);
 }
 
+void set_lores(display_state_t *ds) {
+    if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Lo-Res Mode\n");
+    set_graphics_mode(ds, LORES_MODE);
+    if (!ds->framebased) ds->video_scanner->set_lores();
+    //ds->video_system->set_full_frame_redraw();
+}
 
 uint8_t txt_bus_read_C056(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
     // set lo-res (graphics) mode
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Lo-Res Mode\n");
-    set_graphics_mode(ds, LORES_MODE);
+    /* set_graphics_mode(ds, LORES_MODE);
     if (!ds->framebased) ds->video_scanner->set_lores();
-    ds->video_system->set_full_frame_redraw();
+    ds->video_system->set_full_frame_redraw(); */
     return ds->mmu->floating_bus_read();
 }
 
 void txt_bus_write_C056(void *context, uint32_t address, uint8_t value) {
-    txt_bus_read_C056(context, address);
+    set_lores((display_state_t *)context);
+/*     txt_bus_read_C056(context, address); */
 }
 
 uint8_t txt_bus_read_C057(void *context, uint32_t address) {
@@ -938,8 +954,7 @@ uint8_t display_read_C029(void *context, uint32_t address) {
     return ds->new_video;
 }
 
-void display_write_C029(void *context, uint32_t address, uint8_t value) {
-    display_state_t *ds = (display_state_t *)context;
+void set_new_video(display_state_t *ds, uint8_t value) {
     ds->new_video = value;
     if (ds->new_video & 0x80) {
         ds->video_scanner->set_shr();
@@ -955,15 +970,33 @@ void display_write_C029(void *context, uint32_t address, uint8_t value) {
     }
 }
 
+void display_write_C029(void *context, uint32_t address, uint8_t value) {
+    display_state_t *ds = (display_state_t *)context;
+    set_new_video(ds, value);
+/*     ds->new_video = value;
+    if (ds->new_video & 0x80) {
+        ds->video_scanner->set_shr();
+        // TODO:ds->a2_display->set_shr(true);
+    } else {
+        ds->video_scanner->reset_shr();
+        // TODO: ds->a2_display->reset_shr();
+    }
+    if (ds->new_video & 0x20) {
+        ds->vsg->set_dhgr_mono_mode(true);
+    } else {
+        ds->vsg->set_dhgr_mono_mode(false);
+    } */
+}
+
 /**
  * IIgs MONOCOLOR register
  */
 
 
-uint8_t display_read_C021(void *context, uint32_t address) {
+/* uint8_t display_read_C021(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
     // not sure what to return here.
-}
+} */
 
 void display_write_C021(void *context, uint32_t address, uint8_t value) {
     display_state_t *ds = (display_state_t *)context;
@@ -985,14 +1018,29 @@ uint8_t display_read_C022(void *context, uint32_t address) {
     return ds->text_color;
 }
 
-void display_write_C022(void *context, uint32_t address, uint8_t value) {
-    display_state_t *ds = (display_state_t *)context;
+void set_tbcolor(display_state_t *ds, uint8_t value) {
     ds->text_color = value;
     ds->video_scanner->set_text_bg(value & 0x0F);
     ds->video_scanner->set_text_fg(value >> 4);
     ds->a2_display->set_text_fg(value >> 4);
     ds->a2_display->set_text_bg(value & 0x0F);
+}
+
+void display_write_C022(void *context, uint32_t address, uint8_t value) {
+    display_state_t *ds = (display_state_t *)context;
+    set_tbcolor(ds, value);
+/*     ds->text_color = value;
+    ds->video_scanner->set_text_bg(value & 0x0F);
+    ds->video_scanner->set_text_fg(value >> 4);
+    ds->a2_display->set_text_fg(value >> 4);
+    ds->a2_display->set_text_bg(value & 0x0F); */
     // TODO: also set in AppleII_Display
+}
+
+void set_bordercolor(display_state_t *ds, uint8_t value) {
+    ds->border_color = value;
+    ds->video_scanner->set_border_color(value);
+    ds->a2_display->set_border_color(value);
 }
 
 // TODO: this register is split between realtime clock and border color. and needs to override speaker.
@@ -1003,9 +1051,10 @@ uint8_t display_read_C034(void *context, uint32_t address) {
 
 void display_write_C034(void *context, uint32_t address, uint8_t value) {
     display_state_t *ds = (display_state_t *)context;
-    ds->border_color = value & 0x0F;
+    set_bordercolor(ds, value & 0x0F);
+/*     ds->border_color = value & 0x0F;
     ds->video_scanner->set_border_color(value);
-    ds->a2_display->set_border_color(value);
+    ds->a2_display->set_border_color(value); */
 }
 
 /**
@@ -1086,9 +1135,9 @@ void display_write_C05EF(void *context, uint32_t address, uint8_t value) {
 void display_write_c023(void *context, uint32_t address, uint8_t value) {
     display_state_t *ds = (display_state_t *)context;
     
-    ds->f_VGCINT = (ds->f_VGCINT & 0b1111'1000) | (value & 0b0000'0111);
-
-    //ds->f_VGCINT = value;
+    constexpr uint8_t VGCINT_MASK = 0b0000'0111;
+    ds->f_VGCINT = (ds->f_VGCINT & ~VGCINT_MASK) | (value & VGCINT_MASK);
+    //ds->f_VGCINT = (ds->f_VGCINT & 0b1111'1000) | (value & 0b0000'0111);
 
     update_vgc_interrupt(ds, false);
 }
@@ -1151,18 +1200,24 @@ uint8_t display_read_C046(void *context, uint32_t address) {
 
 /* End VBL Interrupt Handling Section */
 
+/* The Apple IIgs Firmware Reference states that LANGSEL bit 3 is "0 if primary lang set selected", but this appears to be incorrect.
+    Bit 3 is set to 1 by BRAM restore during power-on (or booting GS/OS, or entering the Control Panel) and hardware testing shows that 
+    the language in bits 5-7 is ignored when bit 3 is 0.    */
+void set_langsel(display_state_t *ds, uint8_t value) {
+    ds->f_langsel = value & 0b1111'1000;
+    
+    // set language for display. Only values 0-7 are valid.
+    ds->a2_display->set_char_set((ds->f_langsel & 0xE0) >> 5); // set LS scanner.
+    ds->vsg->set_char_set((ds->f_langsel & 0xE0) >> 5); // set LS scanner.
+    
+    // TODO: set video mode timing ntsc vs pal.
+    // TODO: implement LANGUAGE switch (if 0, use lang 0. Otherwise use whatever lang selected.)
+}
+
 /* C02B - LANGSEL - IIgs specific */
 void display_write_C02B(void *context, uint32_t address, uint8_t value) {
     display_state_t *ds = (display_state_t *)context;
-    ds->f_langsel = value & 0b1111'1000;
-    // TODO: set language for display. Only values 0-7 are valid.
-    ds->a2_display->set_char_set((ds->f_langsel & 0xE0) >> 5); // set LS scanner.
-    ds->vsg->set_char_set((ds->f_langsel & 0xE0) >> 5); // set LS scanner.
-    // TODO: set video mode timing ntsc vs pal.
-    // TODO: implement LANGUAGE switch (if 0, use lang 0. Otherwise use whatever lang selected.)
-    /* The Apple IIgs Firmware Reference states that LANGSEL bit 3 is "0 if primary lang set selected", but this appears to be incorrect.
-     Bit 3 is set to 1 by BRAM restore during power-on (or booting GS/OS, or entering the Control Panel) and hardware testing shows that 
-     the language in bits 5-7 is ignored when bit 3 is 0.    */
+    set_langsel(ds, value & 0b1111'1000);
 }
 
 uint8_t display_read_C02B(void *context, uint32_t address) {
@@ -1484,21 +1539,47 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
             display_write_c041(ds, 0xC041, 0x00);
             // TODO: this is the cleanest way to do it for now, but it feels a little hacky, as if
             // reset handler in mmu and here should each be responsible for clearing their own bits.
+            // NEWVIDEO
             ds->mmu->write(0xC029, ds->new_video&0x1);
+            //set_new_video(ds, 0x00); // C029
+            //LANGSEL: no change
+            set_tbcolor(ds, 0x0F0); // C022
+            set_bordercolor(ds, 0x00); // C034
+            // C023 - VGCINT to 0
+            display_write_c023(ds, 0xC023, 0x00);
+            // C021 MONOCOLOR
+            display_write_C021(ds, 0xC021, 0x00);
         }
         if (ds->computer->platform->id >= PLATFORM_APPLE_IIE) {
-            // JB test/confirm: //e switches to LORES and 7M video clock on reset
-            ds->display_graphics_mode = LORES_MODE; // TODO: is this also on a II+?
+            // TEXT/GRAPHICS: no change.
+            // MIXED: no change.
+
+            // 80col: force to 0
             ds->f_80col = false;
-            ds->f_double_graphics = true;
+            // TODO: this "80store" here should be "80col".
+            ds->a2_display->set_80store(false); // TODO: check this, but it makes sense.
+
             ds->f_altcharset = false;
             ds->video_scanner->reset_80col();
+            
+            // ALTCHARSET: force to 0
             ds->video_scanner->reset_altchrset();
-            ds->video_scanner->set_lores();
-            // set ANC3 to 7M video mode. "set dblres" is opposite sense of ANC3 OFF.
-            ds->video_scanner->set_dblres();
             ds->a2_display->set_char_set(ds->f_altcharset);
-            ds->a2_display->set_80store(false); // TODO: check this, but it makes sense.
+            
+            // C05E: set ANC3 to 7M video mode. "set dblres" is opposite sense of ANC3 OFF.
+            ds->f_double_graphics = true;
+            ds->video_scanner->set_dblres();
+            
+            // set page2 off. make sure also in mmu
+            reset_page2(ds);
+            //ds->mmu->write(0xC054, 0x00); // also hacky
+
+        }
+        if (ds->computer->platform->id < PLATFORM_APPLE_IIGS) { // iie and below only
+            // LORES: switch reset
+            set_lores(ds);
+/*             ds->display_graphics_mode = LORES_MODE; // TODO: is this also on a II+?           
+            ds->video_scanner->set_lores(); */
         }
         // What about the II/II+????
         update_line_mode(ds);
@@ -1567,7 +1648,7 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
 
         mmu->set_C0XX_read_handler(0xC02E, { display_read_C02EF, ds });
         mmu->set_C0XX_read_handler(0xC02F, { display_read_C02EF, ds });
-        mmu->set_C0XX_read_handler(0xC021, { display_read_C021, ds });
+        //mmu->set_C0XX_read_handler(0xC021, { display_read_C021, ds }); actually floating bus all the time.
         mmu->set_C0XX_write_handler(0xC021, { display_write_C021, ds });
 
         mmu->set_C0XX_read_handler(0xC029, { display_read_C029, ds });
@@ -1582,10 +1663,12 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
         ds->mon_rgb.set_shift_enabled(false);
         
         // Set default video scanner colors for Apple IIgs. (F, 6, 6)
-        ds->text_color = 0xF6; ds->video_scanner->set_text_fg(0x0F); ds->video_scanner->set_text_bg(0x06);
+        set_tbcolor(ds, 0xF0);
+/*         ds->text_color = 0xF0; ds->video_scanner->set_text_fg(0x0F); ds->video_scanner->set_text_bg(0x00);
         ds->a2_display->set_text_fg(0x0F); ds->a2_display->set_text_bg(0x06);
-        ds->border_color = 0x06; ds->video_scanner->set_border_color(0x06);
-        ds->a2_display->set_border_color(0x06);
+        ds->a2_display->set_border_color(0x06); */
+        set_bordercolor(ds, 0x00);
+        /* ds->border_color = 0x06; ds->video_scanner->set_border_color(0x06); */
     }
 
     /* if (ds->video_scanner_type == Scanner_AppleIIgs) {
