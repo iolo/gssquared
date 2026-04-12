@@ -111,7 +111,7 @@ void VideoScannerIIgs::init_video_addresses()
         mixed_p1[idx].flags = fl;
         mixed_p2[idx].flags = fl;
     }
-    dump_cycles();
+    /* dump_cycles(); */
 }
 
 void VideoScannerIIgs::dump_cycles()
