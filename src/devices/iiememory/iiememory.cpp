@@ -436,6 +436,9 @@ void reset_iiememory(iiememory_state_t *lc) {
     lc->f_ramwrt = false;
     lc->f_altzp = false;
 
+    // reset page2
+    lc->s_page2 = false;
+
     // TODO: what about the display flags? I don't think these are reset on RESET, but give some consideration.
 
     bsr_map_memory(lc);
