@@ -730,7 +730,8 @@ void MMU_IIgs::reset() {
         megaii_compose_map();
         bsr_map_memory();
         // also set PAGE2 display in video scanner
-        megaii->write(0xC054, 0x00);    
+        // don't do this here.
+        //megaii->write(0xC054, 0x00);    
     }
 }
 
