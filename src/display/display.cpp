@@ -49,137 +49,6 @@
 
 #include "util/DebugHandlerIDs.hpp"
 
-//static constexpr const RGBA_t (&gs_text_colors)[16] = AppleIIgs::TEXT_COLORS;
-
-#if 0
-display_page_t display_pages[NUM_DISPLAY_PAGES] = {
-    {
-        0x0400,
-        0x07FF,
-        {   // text page 1 line addresses
-            0x0400,
-            0x0480,
-            0x0500,
-            0x0580,
-            0x0600,
-            0x0680,
-            0x0700,
-            0x0780,
-
-            0x0428,
-            0x04A8,
-            0x0528,
-            0x05A8,
-            0x0628,
-            0x06A8,
-            0x0728,
-            0x07A8,
-
-            0x0450,
-            0x04D0,
-            0x0550,
-            0x05D0,
-            0x0650,
-            0x06D0,
-            0x0750,
-            0x07D0,
-        },
-        0x2000,
-        0x3FFF,
-        { // HGR page 1 line addresses
-            0x2000,
-            0x2080,
-            0x2100,
-            0x2180,
-            0x2200,
-            0x2280,
-            0x2300,
-            0x2380,
-
-            0x2028,
-            0x20A8,
-            0x2128,
-            0x21A8,
-            0x2228,
-            0x22A8,
-            0x2328,
-            0x23A8,
-
-            0x2050,
-            0x20D0,
-            0x2150,
-            0x21D0,
-            0x2250,
-            0x22D0,
-            0x2350,
-            0x23D0,
-        },
-    },
-    {
-        0x0800,
-        0x0BFF,
-        {       // text page 2 line addresses
-            0x0800,
-            0x0880,
-            0x0900,
-            0x0980,
-            0x0A00,
-            0x0A80,
-            0x0B00,
-            0x0B80,
-
-            0x0828,
-            0x08A8,
-            0x0928,
-            0x09A8,
-            0x0A28,
-            0x0AA8,
-            0x0B28,
-            0x0BA8,
-
-            0x0850,
-            0x08D0,
-            0x0950,
-            0x09D0,
-            0x0A50,
-            0x0AD0,
-            0x0B50,
-            0x0BD0,
-        },
-        0x4000,
-        0x5FFF,
-        {       // HGR page 2 line addresses
-            0x4000,
-            0x4080,
-            0x4100,
-            0x4180,
-            0x4200,
-            0x4280,
-            0x4300,
-            0x4380,
-
-            0x4028,
-            0x40A8,
-            0x4128,
-            0x41A8,
-            0x4228,
-            0x42A8,
-            0x4328,
-            0x43A8,
-
-            0x4050,
-            0x40D0,
-            0x4150,
-            0x41D0,
-            0x4250,
-            0x42D0,
-            0x4350,
-            0x43D0,
-        },
-    },
-};
-#endif
-
 /*
 Index by scanner
 */
@@ -201,111 +70,6 @@ constexpr SDL_FRect content_rec_vsg2[4][2] = {
     // { { 0.0, 0.0, 910, 263.0 }, { 0.0, 2.0, 1040, 263.0 } }, // entire content area
     { { 168.0-42, 35.0-19, 560+42+42, 192.0+19+29 }, { 192.0-48.0, 35.0-19.0, 640.0+48+48, 200+19+21.0 } },
 };
-
-/*
-border texture is laid out based on the hc/vc positions. i.e
-   0-6: right border
-   7-12: left border
-   13-52: top/bottom border center content
-*/ 
-#if 0
-void calculate_border_rects(display_state_t *ds, bool shift_enabled) {
-    float shift_offset = shift_enabled ? 7.0f : 0.0f;
-    float width = shift_enabled ? 567.0f : 560.0f;
-
-    constexpr float b_l_x = 7.0f;
-    constexpr float b_l_w = 6.0f;
-
-    constexpr float b_r_x = 0.0f;
-    constexpr float b_r_w = 7.0f;
-
-    border_rect_array_t &ii_borders = ds->ii_borders;
-    // top
-    ii_borders[B_TOP][B_LT].src = {b_l_x, 244.0, b_l_w, 19};
-    ii_borders[B_TOP][B_LT].dst = {0.0, 0.0, 42.0, 19};
-
-    ii_borders[B_TOP][B_CEN].src = {13, 244.0, 40, 19};
-    ii_borders[B_TOP][B_CEN].dst = {42, 0.0, 560, 19};
-
-    ii_borders[B_TOP][B_RT].src = {0, 244.0, b_r_w, 19};
-    ii_borders[B_TOP][B_RT].dst = {42.0f+560.0f-shift_offset, 0.0, 49.0, 19};
-
-    // center
-    ii_borders[B_CEN][B_LT].src = {b_l_x, 1.0, b_l_w, 192};
-    ii_borders[B_CEN][B_LT].dst = {0, 19.0, 42.0, 192};
-
-    ii_borders[B_CEN][B_CEN].src = {0.0, 0.0, width, (float)192}; // not from border texture
-    ii_borders[B_CEN][B_CEN].dst = {42.0f-shift_offset, 19.0, width, 192}; // not from border texture
-
-    ii_borders[B_CEN][B_RT].src = {0.0, 1.0, b_r_w, 192};
-    ii_borders[B_CEN][B_RT].dst = {42.0f+560.0f-shift_offset, 19.0, 49.0, 192};
-
-    // bottom
-    ii_borders[B_BOT][B_LT].src = {b_l_x, 193.0, b_l_w, 21};
-    ii_borders[B_BOT][B_LT].dst = {0.0, 19+192, 42.0, 21};
-
-    ii_borders[B_BOT][B_CEN].src = {13.0, 193.0, 40, 21};
-    ii_borders[B_BOT][B_CEN].dst = {42, 19+192, 560, 21};
-
-    ii_borders[B_BOT][B_RT].src = {0, 193.0, b_r_w, 21};
-    ii_borders[B_BOT][B_RT].dst = {42.0f+560.0f-shift_offset, 19+192, 49.0, 21};
-
-    // SHR mode - in shr mode one cycle = 8 pixels. So we have to scale the borders out accordingly.
-    border_rect_array_t &shr_borders = ds->shr_borders;
-    // top
-    shr_borders[B_TOP][B_LT].src = {b_l_x, 244.0, b_l_w, 19};
-    shr_borders[B_TOP][B_LT].dst = {0.0, 0.0, 48.0, 19};
-
-    shr_borders[B_TOP][B_CEN].src = {13, 244.0, 40, 19};
-    shr_borders[B_TOP][B_CEN].dst = {48, 0.0, 640, 19};
-
-    shr_borders[B_TOP][B_RT].src = {0, 244.0, b_r_w, 19};
-    shr_borders[B_TOP][B_RT].dst = {48.0f+640.0f, 0.0, 56.0, 19};
-    
-    // center
-    shr_borders[B_CEN][B_LT].src = {0.0, 0.0, b_l_w, 192};
-    shr_borders[B_CEN][B_LT].dst = {0.0, 19.0, 48.0, 192};
-
-    shr_borders[B_CEN][B_CEN].src = {0.0f, 0.0f, 640.0f, 200.0f};
-    shr_borders[B_CEN][B_CEN].dst = {48.0f, 19.0f, 640.0f, 200.0f};
-
-    shr_borders[B_CEN][B_RT].src = {0.0, 0.0, b_r_w, 192}; 
-    shr_borders[B_CEN][B_RT].dst = {48+640, 19.0, 56.0, 192}; 
-
-    // bottom
-    shr_borders[B_BOT][B_LT].src = {b_l_x, 193.0, b_l_w, 21};
-    shr_borders[B_BOT][B_LT].dst = {0.0, 19+192, 48.0, 21};
-
-    shr_borders[B_BOT][B_CEN].src = {13.0, 193.0, 40, 21};
-    shr_borders[B_BOT][B_CEN].dst = {48, 19+192, 640, 21};
-
-    shr_borders[B_BOT][B_RT].src = {0, 193.0, b_r_w, 21};
-    shr_borders[B_BOT][B_RT].dst = {48.0f+640.0f, 19+192, 56.0, 21};   
-}
-
-void print_rect(const char *name, border_rect_t &r) {
-    printf("%s: SRC: (%f, %f, %f, %f)\n", name, r.src.x, r.src.y, r.src.w, r.src.h);
-    printf("%s: DST: (%f, %f, %f, %f)\n", name, r.dst.x, r.dst.y, r.dst.w, r.dst.h);
-}
-
-void print_border_rects(display_state_t *ds) {
-    print_rect("ii_borders[B_CEN][B_CEN]", ds->ii_borders[B_CEN][B_CEN]);
-}
-#endif
-
-// TODO: These should be set from an array of parameters.
-/* void set_display_page(display_state_t *ds, display_page_number_t page) {
-    ds->display_page_table = &display_pages[page];
-    ds->display_page_num = page;
-} */
-
-/* void set_display_page1(display_state_t *ds) {
-    set_display_page(ds, DISPLAY_PAGE_1);
-}
-
-void set_display_page2(display_state_t *ds) {
-    set_display_page(ds, DISPLAY_PAGE_2);
-} */
 
 bool update_display_apple2_cycle(display_state_t *ds) {
     video_system_t *vs = ds->video_system;
@@ -336,13 +100,14 @@ bool update_display_apple2_cycle(display_state_t *ds) {
     ds->vsg->generate_frame(scanbuf);
     ds->frame_vsg->close();
 
-    ds->ii_frame_src = content_rec_vsg2[ds->video_scanner_type][(ds->new_video & 0x80) ? 1 : 0];
-    ds->ii_frame_src.x += (float)ds->hpos-ds->hsize;
-    ds->ii_frame_src.y += (float)ds->vpos-ds->vsize;
-    ds->ii_frame_src.w += (float)ds->hsize*2;
-    ds->ii_frame_src.h += (float)ds->vsize*2;
+    SDL_FRect ii_frame_src;
+    ii_frame_src = content_rec_vsg2[ds->video_scanner_type][(ds->new_video & 0x80) ? 1 : 0];
+    ii_frame_src.x += (float)ds->hpos-ds->hsize;
+    ii_frame_src.y += (float)ds->vpos-ds->vsize;
+    ii_frame_src.w += (float)ds->hsize*2;
+    ii_frame_src.h += (float)ds->vsize*2;
 
-    ds->video_system->render_frame(ds->frame_vsg->get_texture(), &ds->ii_frame_src, nullptr);
+    ds->video_system->render_frame(ds->frame_vsg->get_texture(), &ii_frame_src, nullptr);
 
     return true;
 }
@@ -359,83 +124,16 @@ bool update_display_apple2(display_state_t *ds) {
     return true;
 }
 
-/* void force_display_update(display_state_t *ds) {
-    for (int y = 0; y < 24; y++) {
-        ds->dirty_line[y] = 1;
-    }
-} */
-
-#if 0
-void update_line_mode(display_state_t *ds) {
-
-    line_mode_t top_mode;
-    line_mode_t bottom_mode;
-
-    if (ds->display_mode == TEXT_MODE) {
-        if (ds->f_80col) {
-            top_mode = LM_TEXT80_MODE;
-        } else {
-            top_mode = LM_TEXT_MODE;
-        }
-    } else {
-        if (ds->display_graphics_mode == LORES_MODE) {
-            if (!ds->f_double_graphics) {
-                top_mode = LM_LORES80_MODE;
-            } else {
-                top_mode = LM_LORES_MODE;
-            }
-        } else {
-            if (ds->f_80col) {
-                if (!ds->f_double_graphics) {
-                    top_mode = LM_HIRES80_MODE;
-                } else {
-                    top_mode = LM_HIRES_MODE;
-                }
-            } else {
-                if (!ds->f_double_graphics) {
-                    top_mode = LM_HIRES_MODE_NOSHIFT;
-                } else {
-                    top_mode = LM_HIRES_MODE;
-                }
-            }
-        }
-    }
-
-    if (ds->display_split_mode == SPLIT_SCREEN) {
-        if (ds->f_80col) {
-            bottom_mode = LM_TEXT80_MODE;
-        } else {
-            bottom_mode = LM_TEXT_MODE;
-        }
-    } else {
-        bottom_mode = top_mode;
-    }
-
-    for (int y = 0; y < 20; y++) {
-        ds->line_mode[y] = top_mode;
-    }
-    for (int y = 20; y < 24; y++) {
-        ds->line_mode[y] = bottom_mode;
-    }
-}
-#endif
-
 void set_display_mode(display_state_t *ds, display_mode_t mode) {
-
     ds->display_mode = mode;
-    //update_line_mode(ds);
 }
 
 void set_split_mode(display_state_t *ds, display_split_mode_t mode) {
-
     ds->display_split_mode = mode;
-    //update_line_mode(ds);
 }
 
 void set_graphics_mode(display_state_t *ds, display_graphics_mode_t mode) {
-
     ds->display_graphics_mode = mode;
-    //update_line_mode(ds);
 }
 
 
@@ -444,7 +142,7 @@ uint8_t txt_bus_read_C050(void *context, uint32_t address) {
     // set graphics mode
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Graphics Mode\n");
     set_display_mode(ds, GRAPHICS_MODE);
-    if (!ds->framebased) ds->video_scanner->set_graf();
+    /* if (!ds->framebased) */ ds->video_scanner->set_graf();
     return ds->mmu->floating_bus_read();
 }
 
@@ -458,7 +156,7 @@ uint8_t txt_bus_read_C051(void *context, uint32_t address) {
 // set text mode
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Text Mode\n");
     set_display_mode(ds, TEXT_MODE);
-    if (!ds->framebased) ds->video_scanner->set_text();
+    /* if (!ds->framebased) */ ds->video_scanner->set_text();
     return ds->mmu->floating_bus_read();
 }
 
@@ -472,7 +170,7 @@ uint8_t txt_bus_read_C052(void *context, uint32_t address) {
     // set full screen
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Full Screen\n");
     set_split_mode(ds, FULL_SCREEN);
-    if (!ds->framebased) ds->video_scanner->set_full();
+    /* if (!ds->framebased) */ ds->video_scanner->set_full();
     return ds->mmu->floating_bus_read();
 }
 
@@ -485,7 +183,7 @@ uint8_t txt_bus_read_C053(void *context, uint32_t address) {
     // set split screen
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Split Screen\n");
     set_split_mode(ds, SPLIT_SCREEN);
-    if (!ds->framebased) ds->video_scanner->set_mixed();
+    /* if (!ds->framebased) */ ds->video_scanner->set_mixed();
     return ds->mmu->floating_bus_read();
 }
 
@@ -494,10 +192,10 @@ void txt_bus_write_C053(void *context, uint32_t address, uint8_t value) {
 }
 
 void reset_page2(display_state_t *ds) {
-    // switch to screen 1
-    if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Switching to screen 1\n");
+    // switch to page 1
+    if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Switching to page 1\n");
     //set_display_page1(ds);
-    if (!ds->framebased) ds->video_scanner->set_page_1();
+    /* if (!ds->framebased) */ ds->video_scanner->set_page_1();
 }
 
 uint8_t txt_bus_read_C054(void *context, uint32_t address) {
@@ -514,9 +212,9 @@ void txt_bus_write_C054(void *context, uint32_t address, uint8_t value) {
 uint8_t txt_bus_read_C055(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
     // switch to screen 2
-    if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Switching to screen 2\n");
+    if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Switching to page 2\n");
     //set_display_page2(ds);
-    if (!ds->framebased) ds->video_scanner->set_page_2();
+    /* if (!ds->framebased) */ ds->video_scanner->set_page_2();
     return ds->mmu->floating_bus_read();
 }
 
@@ -526,9 +224,9 @@ void txt_bus_write_C055(void *context, uint32_t address, uint8_t value) {
 
 // set lo-res (graphics) mode
 void set_lores(display_state_t *ds) {
-    if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Lo-Res Mode\n");
+    if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set LoRes Mode\n");
     set_graphics_mode(ds, LORES_MODE);
-    if (!ds->framebased) ds->video_scanner->set_lores();
+    /* if (!ds->framebased) */ ds->video_scanner->set_lores();
 }
 
 uint8_t txt_bus_read_C056(void *context, uint32_t address) {
@@ -544,9 +242,9 @@ void txt_bus_write_C056(void *context, uint32_t address, uint8_t value) {
 uint8_t txt_bus_read_C057(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
     // set hi-res (graphics) mode
-    if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Hi-Res Mode\n");
+    if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set HiRes Mode\n");
     set_graphics_mode(ds, HIRES_MODE);
-    if (!ds->framebased) ds->video_scanner->set_hires();
+    /* if (!ds->framebased) */ ds->video_scanner->set_hires();
     return ds->mmu->floating_bus_read();
 }
 
@@ -559,11 +257,9 @@ void ds_bus_write_C00X(void *context, uint32_t address, uint8_t value) {
     switch (address) {
         case 0xC000:
             ds->video_scanner->set_80store(false);
-            /* ds->a2_display->set_80store(false); */
             return;
         case 0xC001:
             ds->video_scanner->set_80store(true);
-            /* ds->a2_display->set_80store(true); */
             return;
         case 0xC00C:
             ds->f_80col = false;
@@ -574,7 +270,7 @@ void ds_bus_write_C00X(void *context, uint32_t address, uint8_t value) {
         default:
             assert(false && "ds_bus_write_C00X: Unhandled C00X write");
     }
-    if (!ds->framebased) ds->video_scanner->set_80col_f(ds->f_80col);
+    /* if (!ds->framebased) */ ds->video_scanner->set_80col_f(ds->f_80col);
     //update_line_mode(ds);
     //force_display_update(ds);
 }
@@ -584,27 +280,17 @@ void ds_bus_write_C00X(void *context, uint32_t address, uint8_t value) {
  */
 display_state_t::display_state_t() {
 
-    /* for (int i = 0; i < 24; i++) {
-        dirty_line[i] = 0;
-    } */
     display_mode = TEXT_MODE;
     display_split_mode = FULL_SCREEN;
     display_graphics_mode = LORES_MODE;
     display_page_num = DISPLAY_PAGE_1;
-    //display_page_table = &display_pages[display_page_num];
+
     flash_state = false;
     flash_counter = 0;
-
-    buffer = new uint8_t[BASE_WIDTH * BASE_HEIGHT * sizeof(RGBA_t)];
-    memset(buffer, 0, BASE_WIDTH * BASE_HEIGHT * sizeof(RGBA_t)); // TODO: maybe start it with apple logo?
 }
 
 display_state_t::~display_state_t() {
-    delete[] buffer;
     delete vsg;
-    /* delete a2_display; */
-    /* delete frame_rgba;
-    delete frame_bits; */
     delete video_scanner;
     delete char_rom;
 }
@@ -650,22 +336,6 @@ bool handle_display_event(display_state_t *ds, const SDL_Event &event) {
     return false;
 }
 
-#if 0
-void update_flash_state(display_state_t *ds) {
-    display_page_t *display_page = ds->display_page_table;
-    uint16_t *TEXT_PAGE_TABLE = display_page->text_page_table;
-    
-       // 2 times per second (every 30 frames), the state of flashing characters (those matching 0b01xxxxxx) must be reversed.
-    // according to a web site it's every 27.5 frames. 
-    if (++(ds->flash_counter) < 14) {
-        return;
-    }
-    ds->flash_counter = 0;
-    ds->flash_state = !ds->flash_state;
-    /* ds->a2_display->set_flash_state(ds->flash_state); */
-}
-#endif
-
 void display_write_switches(void *context, uint32_t address, uint8_t value) {
     display_state_t *ds = (display_state_t *)context;
     switch (address) {
@@ -677,7 +347,6 @@ void display_write_switches(void *context, uint32_t address, uint8_t value) {
             break;
     }
     ds->video_scanner->set_altchrset_f(ds->f_altcharset);
-    /* ds->a2_display->set_normal_alt(ds->f_altcharset); */
 }
 
 /**
@@ -906,7 +575,6 @@ void set_langsel(display_state_t *ds, uint8_t value) {
     ds->f_langsel = value & 0b1111'1000;
     
     // set language for display. Only values 0-7 are valid.
-    /* ds->a2_display->set_char_set((ds->f_langsel & 0xE0) >> 5); // set LS scanner. */
     ds->vsg->set_char_set((ds->f_langsel & 0xE0) >> 5); // set LS scanner.
     
     // TODO: set video mode timing ntsc vs pal.
@@ -1067,7 +735,7 @@ const char *scanner_to_string(video_scanner_t scanner_type) {
 DebugFormatter *display_debug(display_state_t *ds) {
     DebugFormatter *df = new DebugFormatter();
     df->addLine("Display State:");
-    df->addLine("  Framebased: %d", ds->framebased);
+    //df->addLine("  Framebased: %d", ds->framebased);
     df->addLine("  Video Scanner: (%d) %s", ds->video_scanner_type, scanner_to_string(ds->video_scanner_type));
     df->addLine("  Mode: %s %s %s %s %s %s %s", 
         ds->display_graphics_mode == LORES_MODE ? "LORES" : "HIRES",
@@ -1110,7 +778,13 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
     // Grab appropriate Character ROM and load it.
     // TODO: this is a hack, platforms selects ROMs directory and we should reference that.
     CharRom *charrom = nullptr;
-    switch (computer->platform->id) {
+    // Construct char rom path
+    std::string charrom_path = "roms/";
+    charrom_path.append(computer->platform->rom_dir);
+    charrom_path.append("/char.rom");
+    charrom = new CharRom(charrom_path.c_str());
+
+    /* switch (computer->platform->id) {
         case PLATFORM_APPLE_IIE:
             charrom = new CharRom("roms/apple2e/char.rom");
             break;
@@ -1130,7 +804,7 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
         default:
             system_failure("Unsupported platform in display engine init");
             break;
-    }
+    } */
     
     // create VideoScanner stuff if desired
     ds->video_scanner_type = computer->get_video_scanner();
@@ -1174,7 +848,6 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
     }
 
     ds->char_rom = charrom;
-    //ds->a2_display = new AppleII_Display(charrom);  // Create the full-frame engine.
  
     // LINEAR gets us appropriately blurred pixels, NEAREST gets us sharp pixels, PIXELART is sharper pixels that are more accurate
     // linear/pixelart are set in vs->render_frame.

@@ -18,7 +18,6 @@
 #pragma once
 
 #include "gs2.hpp"
-#include "cpu.hpp"
 #include "videosystem.hpp"
 
 #define SCALE_X 2
@@ -66,26 +65,13 @@ typedef enum {
     LM_HIRES_MODE_NOSHIFT = 6,
 } line_mode_t;
 
-#if 0
-typedef uint16_t display_page_table_t[24] ;
-
-typedef struct display_page_t {
-    uint16_t text_page_start;
-    uint16_t text_page_end;
-    display_page_table_t text_page_table;
-    uint16_t hgr_page_start;
-    uint16_t hgr_page_end;
-    display_page_table_t hgr_page_table;
-} display_page_t;
-#endif
-
 typedef enum {
     DISPLAY_PAGE_1 = 0,
     DISPLAY_PAGE_2,
     NUM_DISPLAY_PAGES
 } display_page_number_t;
 
-#define B_TOP 0
+/* #define B_TOP 0
 #define B_CEN 1
 #define B_BOT 2
 #define B_LT 0
@@ -96,14 +82,14 @@ struct border_rect_t {
     SDL_FRect dst;
 };
 typedef border_rect_t border_rect_array_t[3][3];
-
+ */
 typedef class display_state_t {
 
 public:
     display_state_t();
     ~display_state_t();
 
-    SDL_Texture* screenTexture;
+    //SDL_Texture* screenTexture;
 
     display_mode_t display_mode;
     display_split_mode_t display_split_mode;
@@ -166,7 +152,7 @@ public:
     /* uint32_t dirty_line[24];
     line_mode_t line_mode[24] = {LM_TEXT_MODE}; */ // 0 = TEXT, 1 = LO RES GRAPHICS, 2 = HI RES GRAPHICS
 
-    uint8_t *buffer = nullptr;
+    //uint8_t *buffer = nullptr;
     EventQueue *event_queue;
     video_system_t *video_system;
     MMU_II *mmu;
@@ -176,64 +162,40 @@ public:
 
     video_scanner_t video_scanner_type = Scanner_AppleII;
     VideoScannerII *video_scanner = nullptr; // if set, use this instead of default video generation.
-    //VideoScanGenerator *vsg = nullptr;
+
     bool framebased = true;
     CharRom *char_rom = nullptr;
 
-    /* AppleII_Display *a2_display; */
     FrameVSG     *frame_vsg = nullptr;
     VideoScanGeneratorIntf *vsg = nullptr; // current VideoGenerator
     VideoScanGenerator_Comp *vsgc = nullptr;
     VideoScanGenerator_RGB *vsgr = nullptr;
+
     // monitor controls
     int32_t vsize = 0;
     int32_t hsize = 0;
     int32_t hpos = 0;
     int32_t vpos = 0;
     bool frame_moved = true;
-    int scanner_choice = 0;
 
     Monochrome560 mon_mono;
     NTSC560 mon_ntsc;
     GSRGB560 mon_rgb;
     MessageBus *mbus;
-    //SDL_Texture *stage2 = nullptr;
 
     // IIGS specific
-    /* FrameBorder *fr_border = nullptr;
-    Frame640 *fr_shr = nullptr; */
     uint8_t new_video = 0x01;
     uint8_t text_color = 0x0F0;
     uint8_t border_color = 0x00;
 
-    border_rect_array_t ii_borders; // [y][x]
-    border_rect_array_t shr_borders; // [y][x]
-
-    // these are pretty much static.
-    SDL_FRect ii_frame_src = { 0.0, 0.0, 560.0f+42+49, 232.0 };
-    //SDL_FRect gs_ii_frame_src = { 0.0, 0.0, 651.0, 232.0}; // dst is null - "scale to whatever" 651 is weird but that's the number.. 
-    //SDL_FRect gs_shr_frame_src = { 0.0, 0.0, 744.0, 232.0}; // dst is null - "scale to whatever"
-    //SDL_FRect frame_dst = { 0.0, 0.0, 651.0, 232.0};
 } display_state_t;
 
-//void txt_memory_write(uint16_t , uint8_t );
-//void update_flash_state(cpu_state *cpu);
 void init_mb_device_display(computer_t *computer, SlotType_t slot);
 
 void display_dump_hires_page(MMU_II *mmu, int page);
 void display_dump_text_page(MMU_II *mmu, int page);
 
-//void display_engine_get_buffer(computer_t *computer, uint8_t *buffer, uint32_t *width, uint32_t *height);
 void display_update_video_scanner(display_state_t *ds);
-
-/* uint8_t txt_bus_read_C050(void *context, uint32_t address);
-uint8_t txt_bus_read_C051(void *context, uint32_t address);
-uint8_t txt_bus_read_C052(void *context, uint32_t address);
-uint8_t txt_bus_read_C053(void *context, uint32_t address);
-uint8_t txt_bus_read_C054(void *context, uint32_t address);
-uint8_t txt_bus_read_C055(void *context, uint32_t address);
-uint8_t txt_bus_read_C056(void *context, uint32_t address);
-uint8_t txt_bus_read_C057(void *context, uint32_t address); */
 
 void update_vgc_interrupt(display_state_t *ds, bool assert_now);
 void update_megaii_interrupt(display_state_t *ds, bool assert_now);
