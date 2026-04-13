@@ -4,6 +4,7 @@
 #include "display/display.hpp"
 #include "ui/Clipboard.hpp"
 #include <cmath>
+#include "util/dialog.hpp"
 
 video_system_t::video_system_t(computer_t *computer) {
 
@@ -57,6 +58,13 @@ video_system_t::video_system_t(computer_t *computer) {
 
     const char *rname = SDL_GetRendererName(renderer);
     printf("Renderer: %s\n", rname);
+
+    screencap_texture = SDL_CreateTexture(renderer, PIXEL_FORMAT, SDL_TEXTUREACCESS_TARGET, 910, 263);
+    if (!screencap_texture) {
+        printf("Failed to create txt_shr\n");
+        printf("SDL Error: %s\n", SDL_GetError());
+        system_failure("Failed to create screencap texture");
+    }
 
     // Set scaling quality to nearest neighbor for sharp pixels
     //SDL_SetRenderScale(renderer, SCALE_X, SCALE_Y);
@@ -377,8 +385,9 @@ void video_system_t::flip_display_scale_mode() {
 }
 
 void video_system_t::copy_screen() {
-    SDL_Rect irect = { 0, 0, (int)last_srcrect.w, (int)last_srcrect.h };
-    SDL_SetRenderTarget(renderer, last_texture);
+    SDL_Rect irect = { (int)last_srcrect.x, (int)last_srcrect.y, (int)last_srcrect.w, (int)last_srcrect.h };
+    SDL_SetRenderTarget(renderer, screencap_texture);
+    SDL_RenderTexture(renderer, last_texture, nullptr, nullptr);
     SDL_Surface *surface = SDL_RenderReadPixels(renderer, &irect);
     SDL_SetRenderTarget(renderer, nullptr);
     clip->Clip(surface);

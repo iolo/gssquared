@@ -11479,3 +11479,5 @@ if 3, we need to calculate new scale based on aspect and X.
 ok problem now is I need to generate a border area for the Videx. I don't want to go thru rigamarole to draw into a bigger texture though that would certainly solve the problem.. instead of a dst rect, I can pass amounts to add to X and subtract from W in the dstrect. But call it dst_adjust.
 
 [x] implement (fake) border area for videx  
+
+[x] ah, the screen grab isn't working. the lasttexture is no longer stage2 typically. So we need to alloc a screencap texture in videosystem; on PRNT render that to screencap, then grab pixels back from screencap.

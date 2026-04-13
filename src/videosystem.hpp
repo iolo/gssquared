@@ -49,7 +49,8 @@ struct video_system_t {
 
     SDL_Window *window; // primary emulated display window
     SDL_Renderer* renderer;
-
+    SDL_Texture *screencap_texture = nullptr;
+    
     display_fullscreen_mode_t display_fullscreen_mode = DISPLAY_WINDOWED_MODE;
     display_color_engine_t display_color_engine = DM_ENGINE_NTSC;
     display_mono_color_t display_mono_color = DM_MONO_GREEN;
