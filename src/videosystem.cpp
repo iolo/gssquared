@@ -1,4 +1,6 @@
 //#include "gs2.hpp"
+#include "SDL3/SDL_events.h"
+#include "SDL3/SDL_mouse.h"
 #include "computer.hpp"
 #include "videosystem.hpp"
 #include "display/display.hpp"
@@ -120,6 +122,12 @@ video_system_t::video_system_t(computer_t *computer) {
         }
         if (key == SDLK_PRINTSCREEN) {
             copy_screen();
+        }
+        return false;
+    });
+    computer->sys_event->registerHandler(SDL_EVENT_MOUSE_BUTTON_DOWN, [this](const SDL_Event &event) {
+        if (event.button.button == SDL_BUTTON_MIDDLE) {
+            display_capture_mouse_message(!mouse_captured);
         }
         return false;
     });
