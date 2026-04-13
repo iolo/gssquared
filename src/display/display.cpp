@@ -49,8 +49,9 @@
 
 #include "util/DebugHandlerIDs.hpp"
 
-static constexpr const RGBA_t (&gs_text_colors)[16] = AppleIIgs::TEXT_COLORS;
+//static constexpr const RGBA_t (&gs_text_colors)[16] = AppleIIgs::TEXT_COLORS;
 
+#if 0
 display_page_t display_pages[NUM_DISPLAY_PAGES] = {
     {
         0x0400,
@@ -177,6 +178,7 @@ display_page_t display_pages[NUM_DISPLAY_PAGES] = {
         },
     },
 };
+#endif
 
 /*
 Index by scanner
@@ -206,6 +208,7 @@ border texture is laid out based on the hc/vc positions. i.e
    7-12: left border
    13-52: top/bottom border center content
 */ 
+#if 0
 void calculate_border_rects(display_state_t *ds, bool shift_enabled) {
     float shift_offset = shift_enabled ? 7.0f : 0.0f;
     float width = shift_enabled ? 567.0f : 560.0f;
@@ -288,162 +291,29 @@ void print_rect(const char *name, border_rect_t &r) {
 void print_border_rects(display_state_t *ds) {
     print_rect("ii_borders[B_CEN][B_CEN]", ds->ii_borders[B_CEN][B_CEN]);
 }
+#endif
 
 // TODO: These should be set from an array of parameters.
-void set_display_page(display_state_t *ds, display_page_number_t page) {
+/* void set_display_page(display_state_t *ds, display_page_number_t page) {
     ds->display_page_table = &display_pages[page];
     ds->display_page_num = page;
-}
+} */
 
-void set_display_page1(display_state_t *ds) {
+/* void set_display_page1(display_state_t *ds) {
     set_display_page(ds, DISPLAY_PAGE_1);
 }
 
 void set_display_page2(display_state_t *ds) {
     set_display_page(ds, DISPLAY_PAGE_2);
-}
-
-/**
- * This is effectively a "redraw the entire screen each frame" method now.
- * With an optimization only update dirty lines.
- */
-
-bool update_display_apple2x(display_state_t *ds) {
-#if 0
-    video_system_t *vs = ds->video_system;
-
-    // first push flash state into AppleII_Display
-    ds->a2_display->set_flash_state(ds->flash_state);
-
-    // the backbuffer must be cleared each frame. The docs state this clearly
-    // but I didn't know what the backbuffer was. Also, I assumed doing it once
-    // at startup was enough. NOPE. (oh, it's buffer flipping).
-    uint8_t *ram = ds->mmu->get_memory_base();
-    uint8_t *text_page;
-    uint8_t *hgr_page;
-    uint8_t *alt_text_page;
-    uint8_t *alt_hgr_page;
-    if (ds->display_page_num == DISPLAY_PAGE_1 || ds->a2_display->is_80store()) {
-        text_page     = ram + 0x0400;
-        alt_text_page = ram + 0x10400;
-        hgr_page      = ram + 0x2000;
-        alt_hgr_page  = ram + 0x12000;
-    } else {
-        text_page     = ram + 0x0800;
-        alt_text_page = ram + 0x10800;
-        hgr_page      = ram + 0x4000;
-        alt_hgr_page  = ram + 0x14000;
-    }
-    uint8_t *shr_page = ram + 0x12000;
-
-    int updated = 0;
-
-    SDL_Texture *stage2 = ds->stage2;
-    SDL_Renderer *renderer = vs->renderer;
-
-    bool video_mode_is_shr = (ds->new_video & 0x80) != 0;
-    border_rect_array_t &modes_rects = (video_mode_is_shr) ? ds->shr_borders : ds->ii_borders;
-
-    SDL_SetRenderTarget(renderer, stage2);
-    SDL_RenderClear(renderer);
-    
-    // first check - borders or no.
-    if (ds->video_scanner_type == Scanner_AppleIIgs) {
-        // draw borders using rectangles.
-        RGBA_t border_color = gs_text_colors[ds->border_color];
-        SDL_SetRenderDrawColor(vs->renderer, border_color.r, border_color.g, border_color.b, border_color.a);
-        SDL_RenderFillRect(vs->renderer, &modes_rects[B_TOP][B_LT].dst);
-        SDL_RenderFillRect(vs->renderer, &modes_rects[B_TOP][B_CEN].dst);
-        SDL_RenderFillRect(vs->renderer, &modes_rects[B_TOP][B_RT].dst);
-        SDL_RenderFillRect(vs->renderer, &modes_rects[B_CEN][B_LT].dst);
-        SDL_RenderFillRect(vs->renderer, &modes_rects[B_CEN][B_RT].dst);
-        SDL_RenderFillRect(vs->renderer, &modes_rects[B_BOT][B_LT].dst);
-        SDL_RenderFillRect(vs->renderer, &modes_rects[B_BOT][B_CEN].dst); 
-        SDL_RenderFillRect(vs->renderer, &modes_rects[B_BOT][B_RT].dst);
-    }
-
-    // second check - SHR vs II
-    // we are still just creating the texture
-
-    if (ds->new_video & 0x80) {
-        ds->fr_shr->open();
-        ds->a2_display->generate_shr((SHR *)shr_page, ds->fr_shr);
-        ds->fr_shr->close();
-        ds->video_system->clear();
-        // copy it into the stage2 texture
-        SDL_RenderTexture(renderer, ds->fr_shr->get_texture(), &modes_rects[B_CEN][B_CEN].src, &modes_rects[B_CEN][B_CEN].dst);
-    } else {
-
-        for (uint16_t line = 0; line < 24; line++) {
-            switch (ds->line_mode[line]) {
-                case LM_TEXT_MODE:
-                    ds->a2_display->generate_text40(text_page, ds->frame_bits, line);
-                    break;
-                case LM_LORES_MODE:
-                    ds->a2_display->generate_lores40(text_page, ds->frame_bits, line);
-                    break;
-                case LM_HIRES_MODE:
-                    ds->a2_display->generate_hires40(hgr_page, ds->frame_bits, line);
-                    break;
-                case LM_HIRES_MODE_NOSHIFT:
-                    ds->a2_display->generate_hires40_noshift(hgr_page, ds->frame_bits, line);
-                    break;
-                case LM_TEXT80_MODE:
-                    ds->a2_display->generate_text80(text_page, alt_text_page, ds->frame_bits, line);
-                    break;
-                case LM_LORES80_MODE:
-                    ds->a2_display->generate_lores80(text_page, alt_text_page, ds->frame_bits, line);
-                    break;
-                case LM_HIRES80_MODE:
-                    ds->a2_display->generate_hires80(hgr_page, alt_hgr_page, ds->frame_bits, line);
-                    break;
-            }
-            ds->dirty_line[line] = 0;
-        }
-
-        RGBA_t mono_color_value = vs->get_mono_color();
-        ds->frame_rgba->open();
-        // do a switch on display engine later..
-        switch (vs->display_color_engine) {
-            case DM_ENGINE_NTSC:
-                if (ds->display_mode == TEXT_MODE) {
-                    ds->mon_mono.render(ds->frame_bits, ds->frame_rgba, RGBA_t::make(0xFF, 0xFF, 0xFF, 0xFF));
-                } else {
-                    ds->mon_ntsc.render(ds->frame_bits, ds->frame_rgba, RGBA_t::make(0x00, 0xFF, 0x00, 0xFF) /* , 1 */);
-                }
-                break;
-            case DM_ENGINE_RGB:
-                ds->mon_rgb.render(ds->frame_bits, ds->frame_rgba, RGBA_t::make(0x00, 0xFF, 0x00, 0xFF) /* , 1 */);
-                break;
-            case DM_ENGINE_MONO:
-                ds->mon_mono.render(ds->frame_bits, ds->frame_rgba, mono_color_value);
-                break;
-            default:
-                break; // never happens
-        }
-        ds->frame_rgba->close();
-        
-        // copy it into the stage2 texture.
-        SDL_RenderTexture(renderer, ds->screenTexture, &modes_rects[B_CEN][B_CEN].src, &modes_rects[B_CEN][B_CEN].dst);
-    }
-    // back to main renderer.
-    SDL_SetRenderTarget(renderer, nullptr);
-    // and emit.
-    vs->render_frame(stage2, (video_mode_is_shr) ? &ds->gs_shr_frame_src : &ds->gs_ii_frame_src, &ds->frame_dst);
-    vs->force_full_frame_redraw = false;
-
-    return true;
-#endif
-}
-
+} */
 
 bool update_display_apple2_cycle(display_state_t *ds) {
     video_system_t *vs = ds->video_system;
 
     ScanBuffer *scanbuf = ds->video_scanner->get_frame_scan();
 
-    // TODO: This stuff takes basically no time, but it might make more sense to encap this in a helper routine
-    // somewhere else.
+    // TODO: This stuff takes basically no time, but it might make more sense to encap this in a helper routine somewhere else
+
     switch (vs->display_color_engine) {
         case DM_ENGINE_MONO:
             ds->vsg = ds->vsgc;
@@ -455,7 +325,7 @@ bool update_display_apple2_cycle(display_state_t *ds) {
             ds->mon_mono.set_mono_color(RGBA_t::make(0xFF, 0xFF, 0xFF, 0xFF)); // white
             ds->vsg->set_render(&ds->mon_ntsc);
             break;
-        case DM_ENGINE_RGB: // we send a green value here but mon_rgb does not use it.
+        case DM_ENGINE_RGB:
             ds->vsg = ds->vsgr;
             break;
         default:
@@ -472,24 +342,14 @@ bool update_display_apple2_cycle(display_state_t *ds) {
     ds->ii_frame_src.w += (float)ds->hsize*2;
     ds->ii_frame_src.h += (float)ds->vsize*2;
 
-    // render screenTexture to stage2
-    // this is double copying, but is the same process as the GS display code, and makes screen capture work. Adds about 10uS to display_time.
-    //SDL_SetRenderTarget(vs->renderer, ds->stage2);
     ds->video_system->render_frame(ds->frame_vsg->get_texture(), &ds->ii_frame_src, nullptr);
-/*     if (!SDL_RenderTexture(vs->renderer, ds->frame_vsg->get_texture(), &ds->ii_frame_src, nullptr)) {
-        printf("Failed to render stage2 texture: %s\n", SDL_GetError());
-    } */
-    ////SDL_RenderTexture(vs->renderer, ds->screenTexture, &ds->ii_borders[B_CEN][B_CEN].src, &ds->ii_borders[B_CEN][B_CEN].src);
-    //SDL_SetRenderTarget(vs->renderer, nullptr);
-
-    // now render stage2.
-    /* vs->render_frame(ds->stage2, 
-        &ds->ii_borders[B_CEN][B_CEN].src, 
-        &ds->ii_borders[B_CEN][B_CEN].dst
-    ); */
 
     return true;
 }
+
+/**
+ * This is effectively a "redraw the entire screen each frame" method now.
+ */
 
 bool update_display_apple2(display_state_t *ds) {
     for (int i = 0; i < 17030; i++) {
@@ -499,79 +359,13 @@ bool update_display_apple2(display_state_t *ds) {
     return true;
 }
 
-#if 0
-bool update_display_apple2gs_cycle(display_state_t *ds) {
-
-    video_system_t *vs = ds->video_system;
-
-    ScanBuffer *frame_scan = ds->video_scanner->get_frame_scan();
-    ds->fr_border->open();
-    ds->fr_shr->open();
-    ds->vsg->generate_frame(frame_scan, ds->frame_bits, ds->fr_border, ds->fr_shr);
-    ds->fr_border->close();
-    ds->fr_shr->close();
-
-    if (!(ds->new_video & 0x80)) {
-        ds->frame_rgba->open();
-        switch (vs->display_color_engine) {
-            case DM_ENGINE_MONO:
-                ds->mon_mono.render(ds->frame_bits, ds->frame_rgba, vs->get_mono_color());
-                break;
-            case DM_ENGINE_NTSC:
-                ds->mon_ntsc.render(ds->frame_bits, ds->frame_rgba, RGBA_t::make(0xFF, 0xFF, 0xFF, 0xFF)  /* , 1 */);
-                break;
-            case DM_ENGINE_RGB: // we send a green value here but mon_rgb does not use it.
-                ds->mon_rgb.render(ds->frame_bits, ds->frame_rgba, RGBA_t::make(0x00, 0xFF, 0x00, 0xFF) /* , 1 */);
-                break;
-            default:
-                break;
-        }
-        ds->frame_rgba->close();
-    }
-
-    // TODO: vs->render_frame(.. )  with the border
-
-    SDL_Renderer *renderer = vs->renderer;
-    SDL_Texture *stage2 = ds->stage2;
-    SDL_Texture *txt_border = ds->fr_border->get_texture();
-    SDL_Texture *txt_shr = ds->fr_shr->get_texture();
-    SDL_Texture *txt_apple2 = ds->screenTexture;
-
-    bool video_mode_is_shr = (ds->new_video & 0x80) != 0;
-    SDL_SetRenderTarget(renderer, stage2);
-    SDL_RenderClear(renderer);
-    border_rect_array_t &modes_rects = (video_mode_is_shr) ? ds->shr_borders : ds->ii_borders;
-
-    SDL_RenderTexture(renderer, txt_border, &modes_rects[B_TOP][B_LT].src, &modes_rects[B_TOP][B_LT].dst); // top left
-    SDL_RenderTexture(renderer, txt_border, &modes_rects[B_TOP][B_CEN].src, &modes_rects[B_TOP][B_CEN].dst); // top
-    SDL_RenderTexture(renderer, txt_border, &modes_rects[B_TOP][B_RT].src, &modes_rects[B_TOP][B_RT].dst); // top right
-
-    SDL_RenderTexture(renderer, txt_border, &modes_rects[B_CEN][B_LT].src, &modes_rects[B_CEN][B_LT].dst); // left
-    SDL_RenderTexture(renderer, txt_border, &modes_rects[B_CEN][B_RT].src, &modes_rects[B_CEN][B_RT].dst); // right
-
-    SDL_RenderTexture(renderer, txt_border, &modes_rects[B_BOT][B_LT].src, &modes_rects[B_BOT][B_LT].dst); // bottom left
-    SDL_RenderTexture(renderer, txt_border, &modes_rects[B_BOT][B_CEN].src, &modes_rects[B_BOT][B_CEN].dst); // bottom
-    SDL_RenderTexture(renderer, txt_border, &modes_rects[B_BOT][B_RT].src, &modes_rects[B_BOT][B_RT].dst); // bottom right
-    // Copy the content texture in
-    if (video_mode_is_shr) {
-        SDL_RenderTexture(renderer, txt_shr, &modes_rects[B_CEN][B_CEN].src, &modes_rects[B_CEN][B_CEN].dst);
-    } else {
-        // draw over border but shiftable portions need to be alpha'd with border color.
-        SDL_RenderTexture(renderer, txt_apple2, &modes_rects[B_CEN][B_CEN].src, &modes_rects[B_CEN][B_CEN].dst);                
-    }
-    SDL_SetRenderTarget(renderer, nullptr);
-    vs->render_frame(stage2, (video_mode_is_shr) ? &ds->gs_shr_frame_src : &ds->gs_ii_frame_src, &ds->frame_dst);
-
-    return true;
-}
-#endif
-
-void force_display_update(display_state_t *ds) {
+/* void force_display_update(display_state_t *ds) {
     for (int y = 0; y < 24; y++) {
         ds->dirty_line[y] = 1;
     }
-}
+} */
 
+#if 0
 void update_line_mode(display_state_t *ds) {
 
     line_mode_t top_mode;
@@ -624,24 +418,26 @@ void update_line_mode(display_state_t *ds) {
         ds->line_mode[y] = bottom_mode;
     }
 }
+#endif
 
 void set_display_mode(display_state_t *ds, display_mode_t mode) {
 
     ds->display_mode = mode;
-    update_line_mode(ds);
+    //update_line_mode(ds);
 }
 
 void set_split_mode(display_state_t *ds, display_split_mode_t mode) {
 
     ds->display_split_mode = mode;
-    update_line_mode(ds);
+    //update_line_mode(ds);
 }
 
 void set_graphics_mode(display_state_t *ds, display_graphics_mode_t mode) {
 
     ds->display_graphics_mode = mode;
-    update_line_mode(ds);
+    //update_line_mode(ds);
 }
+
 
 uint8_t txt_bus_read_C050(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
@@ -649,7 +445,7 @@ uint8_t txt_bus_read_C050(void *context, uint32_t address) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Graphics Mode\n");
     set_display_mode(ds, GRAPHICS_MODE);
     if (!ds->framebased) ds->video_scanner->set_graf();
-    ds->video_system->set_full_frame_redraw();
+    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -664,7 +460,7 @@ uint8_t txt_bus_read_C051(void *context, uint32_t address) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Text Mode\n");
     set_display_mode(ds, TEXT_MODE);
     if (!ds->framebased) ds->video_scanner->set_text();
-    ds->video_system->set_full_frame_redraw();
+    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -679,7 +475,7 @@ uint8_t txt_bus_read_C052(void *context, uint32_t address) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Full Screen\n");
     set_split_mode(ds, FULL_SCREEN);
     if (!ds->framebased) ds->video_scanner->set_full();
-    ds->video_system->set_full_frame_redraw();
+    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -693,7 +489,7 @@ uint8_t txt_bus_read_C053(void *context, uint32_t address) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Split Screen\n");
     set_split_mode(ds, SPLIT_SCREEN);
     if (!ds->framebased) ds->video_scanner->set_mixed();
-    ds->video_system->set_full_frame_redraw();
+    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -704,34 +500,28 @@ void txt_bus_write_C053(void *context, uint32_t address, uint8_t value) {
 void reset_page2(display_state_t *ds) {
     // switch to screen 1
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Switching to screen 1\n");
-    set_display_page1(ds);
+    //set_display_page1(ds);
     if (!ds->framebased) ds->video_scanner->set_page_1();
-    ds->video_system->set_full_frame_redraw();   
 }
 
 uint8_t txt_bus_read_C054(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
     // switch to screen 1
     reset_page2(ds);
-/*     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Switching to screen 1\n");
-    set_display_page1(ds);
-    if (!ds->framebased) ds->video_scanner->set_page_1();
-    ds->video_system->set_full_frame_redraw(); */
     return ds->mmu->floating_bus_read();
 }
 
 void txt_bus_write_C054(void *context, uint32_t address, uint8_t value) {
     reset_page2((display_state_t *)context);
-/*     txt_bus_read_C054(context, address); */
 }
 
 uint8_t txt_bus_read_C055(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
     // switch to screen 2
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Switching to screen 2\n");
-    set_display_page2(ds);
+    //set_display_page2(ds);
     if (!ds->framebased) ds->video_scanner->set_page_2();
-    ds->video_system->set_full_frame_redraw();
+    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -739,27 +529,21 @@ void txt_bus_write_C055(void *context, uint32_t address, uint8_t value) {
     txt_bus_read_C055(context, address);
 }
 
+// set lo-res (graphics) mode
 void set_lores(display_state_t *ds) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Lo-Res Mode\n");
     set_graphics_mode(ds, LORES_MODE);
     if (!ds->framebased) ds->video_scanner->set_lores();
-    //ds->video_system->set_full_frame_redraw();
 }
 
 uint8_t txt_bus_read_C056(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
-    // set lo-res (graphics) mode
-    /* if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Lo-Res Mode\n");
-     set_graphics_mode(ds, LORES_MODE);
-    if (!ds->framebased) ds->video_scanner->set_lores();
-    ds->video_system->set_full_frame_redraw(); */
     set_lores(ds);
     return ds->mmu->floating_bus_read();
 }
 
 void txt_bus_write_C056(void *context, uint32_t address, uint8_t value) {
     set_lores((display_state_t *)context);
-/*     txt_bus_read_C056(context, address); */
 }
 
 uint8_t txt_bus_read_C057(void *context, uint32_t address) {
@@ -768,7 +552,7 @@ uint8_t txt_bus_read_C057(void *context, uint32_t address) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Hi-Res Mode\n");
     set_graphics_mode(ds, HIRES_MODE);
     if (!ds->framebased) ds->video_scanner->set_hires();
-    ds->video_system->set_full_frame_redraw();
+    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -781,11 +565,11 @@ void ds_bus_write_C00X(void *context, uint32_t address, uint8_t value) {
     switch (address) {
         case 0xC000:
             ds->video_scanner->set_80store(false);
-            ds->a2_display->set_80store(false);
+            /* ds->a2_display->set_80store(false); */
             return;
         case 0xC001:
             ds->video_scanner->set_80store(true);
-            ds->a2_display->set_80store(true);
+            /* ds->a2_display->set_80store(true); */
             return;
         case 0xC00C:
             ds->f_80col = false;
@@ -797,8 +581,8 @@ void ds_bus_write_C00X(void *context, uint32_t address, uint8_t value) {
             assert(false && "ds_bus_write_C00X: Unhandled C00X write");
     }
     if (!ds->framebased) ds->video_scanner->set_80col_f(ds->f_80col);
-    update_line_mode(ds);
-    force_display_update(ds);
+    //update_line_mode(ds);
+    //force_display_update(ds);
 }
 
 /**
@@ -806,14 +590,14 @@ void ds_bus_write_C00X(void *context, uint32_t address, uint8_t value) {
  */
 display_state_t::display_state_t() {
 
-    for (int i = 0; i < 24; i++) {
+    /* for (int i = 0; i < 24; i++) {
         dirty_line[i] = 0;
-    }
+    } */
     display_mode = TEXT_MODE;
     display_split_mode = FULL_SCREEN;
     display_graphics_mode = LORES_MODE;
     display_page_num = DISPLAY_PAGE_1;
-    display_page_table = &display_pages[display_page_num];
+    //display_page_table = &display_pages[display_page_num];
     flash_state = false;
     flash_counter = 0;
 
@@ -824,7 +608,7 @@ display_state_t::display_state_t() {
 display_state_t::~display_state_t() {
     delete[] buffer;
     delete vsg;
-    delete a2_display;
+    /* delete a2_display; */
     /* delete frame_rgba;
     delete frame_bits; */
     delete video_scanner;
@@ -849,7 +633,7 @@ bool handle_display_event(display_state_t *ds, const SDL_Event &event) {
         }
         init_hgr_LUT();
         //force_display_update(ds);
-        ds->video_system->set_full_frame_redraw();
+        //ds->video_system->set_full_frame_redraw();
         static char msgbuf[256];
         snprintf(msgbuf, sizeof(msgbuf), "Hue set to: %f, Saturation to: %f\n", config.videoHue, config.videoSaturation);
         ds->event_queue->addEvent(new Event(EVENT_SHOW_MESSAGE, 0, msgbuf));
@@ -874,7 +658,7 @@ bool handle_display_event(display_state_t *ds, const SDL_Event &event) {
     return false;
 }
 
-
+#if 0
 void update_flash_state(display_state_t *ds) {
     display_page_t *display_page = ds->display_page_table;
     uint16_t *TEXT_PAGE_TABLE = display_page->text_page_table;
@@ -886,51 +670,7 @@ void update_flash_state(display_state_t *ds) {
     }
     ds->flash_counter = 0;
     ds->flash_state = !ds->flash_state;
-    ds->a2_display->set_flash_state(ds->flash_state);
-}
-
-
-/** Called by Clipboard to return current display buffer.
- * doubles scanlines and returns 2* the "native" height. */
-
-#if 0
-void display_engine_get_buffer(computer_t *computer, uint8_t *buffer, uint32_t *width, uint32_t *height) {
-    display_state_t *ds = (display_state_t *)computer->get_module_state(MODULE_DISPLAY);
-    // pass back the size.
-    uint32_t w = BASE_WIDTH+7;
-    *width = w;
-    *height = BASE_HEIGHT * 2;
-    // BMP files have the last scanline first. What? 
-    // Copy RGB values without alpha channel
-    //RGBA_t *src = (RGBA_t *)ds->buffer;
-    uint8_t *dst = buffer;
-    for (int scanline = BASE_HEIGHT - 1; scanline >= 0; scanline--) {
-        ds->frame_rgba->set_line(scanline);
-        for (int i = 0; i < w; i++) {
-            RGBA_t pix = ds->frame_rgba->pull();
-            *dst++ = pix.b;
-            *dst++ = pix.g;
-            *dst++ = pix.r;
-        }
-        // add one extra pixel to make it a multiple of 4.
-        *dst++ = 0;
-        *dst++ = 0;
-        *dst++ = 0;
-        // do it again - scanline double
-        ds->frame_rgba->set_line(scanline);
-        for (int i = 0; i < w; i++) {
-            RGBA_t pix = ds->frame_rgba->pull();
-            *dst++ = pix.b;
-            *dst++ = pix.g;
-            *dst++ = pix.r;
-        }
-        *dst++ = 0;
-        *dst++ = 0;
-        *dst++ = 0;
-    }
-    static char msgbuf[256];
-    snprintf(msgbuf, sizeof(msgbuf), "Screen snapshot taken");
-    computer->event_queue->addEvent(new Event(EVENT_SHOW_MESSAGE, 0, msgbuf));
+    /* ds->a2_display->set_flash_state(ds->flash_state); */
 }
 #endif
 
@@ -945,7 +685,7 @@ void display_write_switches(void *context, uint32_t address, uint8_t value) {
             break;
     }
     ds->video_scanner->set_altchrset_f(ds->f_altcharset);
-    ds->a2_display->set_normal_alt(ds->f_altcharset);
+    /* ds->a2_display->set_normal_alt(ds->f_altcharset); */
 }
 
 /**
@@ -960,10 +700,10 @@ void set_new_video(display_state_t *ds, uint8_t value) {
     ds->new_video = value;
     if (ds->new_video & 0x80) {
         ds->video_scanner->set_shr();
-        // TODO:ds->a2_display->set_shr(true);
+        /* // TODO:ds->a2_display->set_shr(true); */
     } else {
         ds->video_scanner->reset_shr();
-        // TODO: ds->a2_display->reset_shr();
+        /* // TODO: ds->a2_display->reset_shr(); */
     }
     if (ds->new_video & 0x20) {
         ds->vsg->set_dhgr_mono_mode(true);
@@ -975,30 +715,13 @@ void set_new_video(display_state_t *ds, uint8_t value) {
 void display_write_C029(void *context, uint32_t address, uint8_t value) {
     display_state_t *ds = (display_state_t *)context;
     set_new_video(ds, value);
-/*     ds->new_video = value;
-    if (ds->new_video & 0x80) {
-        ds->video_scanner->set_shr();
-        // TODO:ds->a2_display->set_shr(true);
-    } else {
-        ds->video_scanner->reset_shr();
-        // TODO: ds->a2_display->reset_shr();
-    }
-    if (ds->new_video & 0x20) {
-        ds->vsg->set_dhgr_mono_mode(true);
-    } else {
-        ds->vsg->set_dhgr_mono_mode(false);
-    } */
 }
 
 /**
  * IIgs MONOCOLOR register
  */
 
-
-/* uint8_t display_read_C021(void *context, uint32_t address) {
-    display_state_t *ds = (display_state_t *)context;
-    // not sure what to return here.
-} */
+/* There is no read C021, it's floating in GS */
 
 void display_write_C021(void *context, uint32_t address, uint8_t value) {
     display_state_t *ds = (display_state_t *)context;
@@ -1024,8 +747,8 @@ void set_tbcolor(display_state_t *ds, uint8_t value) {
     ds->text_color = value;
     ds->video_scanner->set_text_bg(value & 0x0F);
     ds->video_scanner->set_text_fg(value >> 4);
-    ds->a2_display->set_text_fg(value >> 4);
-    ds->a2_display->set_text_bg(value & 0x0F);
+    /* ds->a2_display->set_text_fg(value >> 4);
+    ds->a2_display->set_text_bg(value & 0x0F); */
 }
 
 void display_write_C022(void *context, uint32_t address, uint8_t value) {
@@ -1036,16 +759,20 @@ void display_write_C022(void *context, uint32_t address, uint8_t value) {
     ds->video_scanner->set_text_fg(value >> 4);
     ds->a2_display->set_text_fg(value >> 4);
     ds->a2_display->set_text_bg(value & 0x0F); */
-    // TODO: also set in AppleII_Display
+    /* // TODO: also set in AppleII_Display */
 }
 
 void set_bordercolor(display_state_t *ds, uint8_t value) {
     ds->border_color = value;
     ds->video_scanner->set_border_color(value);
-    ds->a2_display->set_border_color(value);
+    /* ds->a2_display->set_border_color(value); */
 }
 
-// TODO: this register is split between realtime clock and border color. and needs to override speaker.
+/*
+ * CLOCKCTL - $C034 - 
+ * this register is split between realtime clock and border color
+ */
+
 uint8_t display_read_C034(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
     return ds->border_color;
@@ -1097,30 +824,12 @@ uint8_t display_read_C01AF(void *context, uint32_t address) {
     return kbv | fl;
 }
 
-/* uint8_t display_read_C01E(void *context, uint32_t address) {
-    display_state_t *ds = (display_state_t *)context;
-    uint8_t fl = (ds->f_altcharset) ? 0x80 : 0x00;
-    
-    KeyboardMessage *keymsg = (KeyboardMessage *)ds->mbus->read(MESSAGE_TYPE_KEYBOARD);
-    uint8_t kbv = (keymsg ? keymsg->mk->last_key_val : ds->mmu->floating_bus_read()) & 0x7F;
-    return kbv | fl;
-}
-
-uint8_t display_read_C01F(void *context, uint32_t address) {
-    display_state_t *ds = (display_state_t *)context;
-    uint8_t fl = (ds->f_80col) ? 0x80 : 0x00;
-
-    KeyboardMessage *keymsg = (KeyboardMessage *)ds->mbus->read(MESSAGE_TYPE_KEYBOARD);
-    uint8_t kbv = (keymsg ? keymsg->mk->last_key_val : ds->mmu->floating_bus_read()) & 0x7F;
-    return kbv | fl;
-} */
-
 uint8_t display_read_C05EF(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
     ds->f_double_graphics = (address & 0x1); // this is inverted sense
     ds->video_scanner->set_dblres_f(!ds->f_double_graphics);
-    update_line_mode(ds);
-    ds->video_system->set_full_frame_redraw();
+    //update_line_mode(ds);
+    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -1128,8 +837,8 @@ void display_write_C05EF(void *context, uint32_t address, uint8_t value) {
     display_state_t *ds = (display_state_t *)context;
     ds->f_double_graphics = (address & 0x1); // this is inverted sense
     ds->video_scanner->set_dblres_f(!ds->f_double_graphics);
-    update_line_mode(ds);
-    ds->video_system->set_full_frame_redraw();
+    //update_line_mode(ds);
+    //ds->video_system->set_full_frame_redraw();
 }
 
 /* VBL, Mouse, 1 sec, 1/4 sec Interrupt Handling Section - IIgs specific registers */
@@ -1209,7 +918,7 @@ void set_langsel(display_state_t *ds, uint8_t value) {
     ds->f_langsel = value & 0b1111'1000;
     
     // set language for display. Only values 0-7 are valid.
-    ds->a2_display->set_char_set((ds->f_langsel & 0xE0) >> 5); // set LS scanner.
+    /* ds->a2_display->set_char_set((ds->f_langsel & 0xE0) >> 5); // set LS scanner. */
     ds->vsg->set_char_set((ds->f_langsel & 0xE0) >> 5); // set LS scanner.
     
     // TODO: set video mode timing ntsc vs pal.
@@ -1477,30 +1186,11 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
     }
 
     ds->char_rom = charrom;
-    ds->a2_display = new AppleII_Display(charrom);  // Create the full-frame engine.
-    
-    // Create the screen textures
-
-    /* uint16_t f_w = BASE_WIDTH+20;
-    uint16_t f_h = BASE_HEIGHT; */
-    //ds->frame_rgba = new(std::align_val_t(64)) Frame560RGBA(567, f_h, ds->screenTexture);
-    /* ds->frame_rgba = new Frame560RGBA(567, f_h, vs->renderer, PIXEL_FORMAT);
-    ds->screenTexture = ds->frame_rgba->get_texture();
-    ds->frame_bits = new Frame560(560, f_h); */
-    //ds->frame_rgba->clear(RGBA_t::make(0, 0, 0, 0)); // clear the frame buffers at startup.
-    //ds->frame_bits->clear(0);
-
-    //ds->stage2 = SDL_CreateTexture(vs->renderer, PIXEL_FORMAT, SDL_TEXTUREACCESS_TARGET, 768, 256);
-    ds->stage2 = SDL_CreateTexture(vs->renderer, PIXEL_FORMAT, SDL_TEXTUREACCESS_TARGET, 910, 263);
-    if (!ds->stage2) {
-        printf("Failed to create txt_shr\n");
-        printf("SDL Error: %s\n", SDL_GetError());
-        system_failure("Failed to create stage2 texture");
-    }
-
+    //ds->a2_display = new AppleII_Display(charrom);  // Create the full-frame engine.
+ 
     // LINEAR gets us appropriately blurred pixels, NEAREST gets us sharp pixels, PIXELART is sharper pixels that are more accurate
-    SDL_SetTextureBlendMode(ds->screenTexture, SDL_BLENDMODE_NONE); /* GRRRRRRR. This was defaulting to SDL_BLENDMODE_BLEND. */
-    SDL_SetTextureScaleMode(ds->screenTexture, SDL_SCALEMODE_NEAREST);
+    // linear/pixelart are set in vs->render_frame.
+    SDL_SetTextureBlendMode(ds->frame_vsg->get_texture(), SDL_BLENDMODE_NONE);
 
     // set in CPU so we can reference later
     computer->set_module_state(MODULE_DISPLAY, ds);
@@ -1559,14 +1249,14 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
             // 80col: force to 0
             ds->f_80col = false;
             // TODO: this "80store" here should be "80col".
-            ds->a2_display->set_80store(false); // TODO: check this, but it makes sense.
+            //ds->a2_display->set_80store(false); // TODO: check this, but it makes sense.
 
             ds->f_altcharset = false;
             ds->video_scanner->reset_80col();
             
             // ALTCHARSET: force to 0
             ds->video_scanner->reset_altchrset();
-            ds->a2_display->set_char_set(ds->f_altcharset);
+            //ds->a2_display->set_char_set(ds->f_altcharset);
             
             // set page2 off. make sure also in mmu
             reset_page2(ds);
@@ -1583,14 +1273,14 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
             ds->video_scanner->set_lores(); */
         }
         // What about the II/II+????
-        update_line_mode(ds);
+        //update_line_mode(ds);
         return true;
     });
 
     if (computer->platform->id == PLATFORM_APPLE_IIE || computer->platform->id == PLATFORM_APPLE_IIE_ENHANCED
     || computer->platform->id == PLATFORM_APPLE_IIE_65816 || computer->platform->id == PLATFORM_APPLE_IIGS) {
         ds->f_altcharset = false;
-        ds->a2_display->set_char_set(ds->f_altcharset);
+        //ds->a2_display->set_char_set(ds->f_altcharset);
         mmu->set_C0XX_write_handler(0xC000, { ds_bus_write_C00X, ds });
         mmu->set_C0XX_write_handler(0xC001, { ds_bus_write_C00X, ds });
         mmu->set_C0XX_write_handler(0xC00C, { ds_bus_write_C00X, ds });
@@ -1625,7 +1315,7 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
         mmu->set_C0XX_read_handler(0xC02B, { display_read_C02B, ds });
     }
 
-    switch (ds->video_scanner_type) {
+    /* switch (ds->video_scanner_type) {
         case Scanner_AppleIIgs:
         case Scanner_AppleII:
             calculate_border_rects(ds, false);
@@ -1637,19 +1327,18 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
         default:
             system_failure("Unsupported video scanner type in display engine init");
             break;
-    }
+    } */
 
     if (computer->platform->id == PLATFORM_APPLE_IIE_65816 || computer->platform->id == PLATFORM_APPLE_IIGS) {
         // allocate border and shr frame buffers.
-        ds->fr_border = new(std::align_val_t(64)) FrameBorder(53, 263, vs->renderer, PIXEL_FORMAT);
+        /* ds->fr_border = new(std::align_val_t(64)) FrameBorder(53, 263, vs->renderer, PIXEL_FORMAT);
         ds->fr_shr = new(std::align_val_t(64)) Frame640(640, 200, vs->renderer, PIXEL_FORMAT);
         SDL_SetTextureScaleMode(ds->fr_border->get_texture(), SDL_SCALEMODE_NEAREST);
-        SDL_SetTextureScaleMode(ds->fr_shr->get_texture(), SDL_SCALEMODE_NEAREST);
-
+        SDL_SetTextureScaleMode(ds->fr_shr->get_texture(), SDL_SCALEMODE_NEAREST); */
 
         mmu->set_C0XX_read_handler(0xC02E, { display_read_C02EF, ds });
         mmu->set_C0XX_read_handler(0xC02F, { display_read_C02EF, ds });
-        //mmu->set_C0XX_read_handler(0xC021, { display_read_C021, ds }); actually floating bus all the time.
+        //no display_read_C021;  actually floating bus all the time.
         mmu->set_C0XX_write_handler(0xC021, { display_write_C021, ds });
 
         mmu->set_C0XX_read_handler(0xC029, { display_read_C029, ds });
@@ -1665,46 +1354,20 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
         
         // Set default video scanner colors for Apple IIgs. (F, 6, 6)
         set_tbcolor(ds, 0xF0);
-/*         ds->text_color = 0xF0; ds->video_scanner->set_text_fg(0x0F); ds->video_scanner->set_text_bg(0x00);
-        ds->a2_display->set_text_fg(0x0F); ds->a2_display->set_text_bg(0x06);
-        ds->a2_display->set_border_color(0x06); */
         set_bordercolor(ds, 0x00);
-        /* ds->border_color = 0x06; ds->video_scanner->set_border_color(0x06); */
     }
 
-    /* if (ds->video_scanner_type == Scanner_AppleIIgs) {
-        vs->register_frame_processor(0, [ds](bool force_full_frame) -> bool {
-            bool ret;
-            if (ds->framebased || force_full_frame) {
-                update_flash_state(ds);
-                ret = update_display_apple2(ds);
-            } else {
-                ret = update_display_apple2_cycle(ds);
-            }
-            return ret;
-        });
-    } else {
-        vs->register_frame_processor(0, [ds](bool force_full_frame) -> bool {
-            bool ret;
-            if (ds->framebased || force_full_frame) {
-                update_flash_state(ds);
-                ret = update_display_apple2(ds);
-            } else {
-                ret = update_display_apple2_cycle(ds);
-            }
-            return ret;
-        });
-    } */
     vs->register_frame_processor(0, [ds](bool force_full_frame) -> bool {
         bool ret;
         if (ds->framebased || force_full_frame) {
-            update_flash_state(ds);
+            //update_flash_state(ds);
             ret = update_display_apple2(ds);
         } else {
             ret = update_display_apple2_cycle(ds);
         }
         return ret;
     });
+
     if (ds->video_scanner_type == Scanner_AppleIIgs) {
         // For generating the 1sec interrupt, try to sync to real time as close to a 1 second increment as possible,
         // based on module startup time.
@@ -1734,7 +1397,6 @@ void init_mb_device_display(computer_t *computer, SlotType_t slot) {
 void init_mb_device_display_frameonly(computer_t *computer, SlotType_t slot) {
     init_mb_device_display_common(computer, slot, false);
 }
-
 
 void display_dump_file(MMU_II *mmu, const char *filename, uint16_t base_addr, uint16_t sizer) {
     FILE *fp = fopen(filename, "wb");

@@ -11481,3 +11481,14 @@ ok problem now is I need to generate a border area for the Videx. I don't want t
 [x] implement (fake) border area for videx  
 
 [x] ah, the screen grab isn't working. the lasttexture is no longer stage2 typically. So we need to alloc a screencap texture in videosystem; on PRNT render that to screencap, then grab pixels back from screencap.
+
+The AppleII video routines are finally being ripped out! At least from Display. I am going to reuse this code in the debugger for the "display arbitrary display page" and "display arbitrary memory as a display page".
+
+When we drop out of LS there is an interesting thing, the video seems to lose sync and resyncs.
+
+I can rip out wherever we have this: set_full_frame_redraw
+
+Somehow in all this stuff I have LS GS running at 180MHz. 
+
+Wow there is a -lot- of old cruft in the display routines. I am ripping stuff out left and right that was related to several versions of display code ago, even older than the AppleII module. ooh, the old update_line_mode - gone! old dirty line table - gone!
+We now -only- set state in the Scanner, because that tells VideoGenerator everything it needs to know to render frames.

@@ -142,7 +142,7 @@ void video_system_t::set_window_title(const char *title) {
     SDL_SetWindowTitle(window, title);
 }
 
-void video_system_t::render_frame(SDL_Texture *texture, SDL_FRect *srcrect, SDL_FRect *dstadj, bool respect_mode /* , float offset */) {
+void video_system_t::render_frame(SDL_Texture *texture, SDL_FRect *srcrect, SDL_FRect *dstadj, bool respect_mode) {
 
     SDL_FRect adj_target;
     if (dstadj) {
@@ -163,13 +163,11 @@ void video_system_t::render_frame(SDL_Texture *texture, SDL_FRect *srcrect, SDL_
         if (display_pixel_mode == DM_PIXEL_FUZZ) {
             SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
         } else {
-            SDL_SetTextureScaleMode(texture,  SDL_SCALEMODE_PIXELART); // SDL_SCALEMODE_NEAREST
+            SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_PIXELART); // SDL_SCALEMODE_NEAREST
         }
     }
-   /*  SDL_FRect dstrect_shifted = *dstrect;
-    dstrect_shifted.x += fullscreen_x_shift; // center in fullscreen. */
 
-    SDL_RenderTexture(renderer, texture, srcrect, &adj_target /* &dstrect_shifted */);
+    SDL_RenderTexture(renderer, texture, srcrect, &adj_target);
     last_texture = texture;
     last_srcrect = *srcrect;
 }

@@ -66,6 +66,7 @@ typedef enum {
     LM_HIRES_MODE_NOSHIFT = 6,
 } line_mode_t;
 
+#if 0
 typedef uint16_t display_page_table_t[24] ;
 
 typedef struct display_page_t {
@@ -76,6 +77,7 @@ typedef struct display_page_t {
     uint16_t hgr_page_end;
     display_page_table_t hgr_page_table;
 } display_page_t;
+#endif
 
 typedef enum {
     DISPLAY_PAGE_1 = 0,
@@ -107,7 +109,7 @@ public:
     display_split_mode_t display_split_mode;
     display_graphics_mode_t display_graphics_mode;
     display_page_number_t display_page_num;
-    display_page_t *display_page_table;
+    //display_page_t *display_page_table;
     bool f_altcharset = false;
     bool f_80col = false;
 
@@ -161,8 +163,8 @@ public:
     
     uint8_t f_langsel = 0x00;
 
-    uint32_t dirty_line[24];
-    line_mode_t line_mode[24] = {LM_TEXT_MODE}; // 0 = TEXT, 1 = LO RES GRAPHICS, 2 = HI RES GRAPHICS
+    /* uint32_t dirty_line[24];
+    line_mode_t line_mode[24] = {LM_TEXT_MODE}; */ // 0 = TEXT, 1 = LO RES GRAPHICS, 2 = HI RES GRAPHICS
 
     uint8_t *buffer = nullptr;
     EventQueue *event_queue;
@@ -178,13 +180,12 @@ public:
     bool framebased = true;
     CharRom *char_rom = nullptr;
 
-    AppleII_Display *a2_display;
-    /* Frame560     *frame_bits;
-    Frame560RGBA *frame_rgba; */
+    /* AppleII_Display *a2_display; */
     FrameVSG     *frame_vsg = nullptr;
-    VideoScanGeneratorIntf *vsg = nullptr;
+    VideoScanGeneratorIntf *vsg = nullptr; // current VideoGenerator
     VideoScanGenerator_Comp *vsgc = nullptr;
     VideoScanGenerator_RGB *vsgr = nullptr;
+    // monitor controls
     int32_t vsize = 0;
     int32_t hsize = 0;
     int32_t hpos = 0;
@@ -196,11 +197,11 @@ public:
     NTSC560 mon_ntsc;
     GSRGB560 mon_rgb;
     MessageBus *mbus;
-    SDL_Texture *stage2 = nullptr;
+    //SDL_Texture *stage2 = nullptr;
 
     // IIGS specific
-    FrameBorder *fr_border = nullptr;
-    Frame640 *fr_shr = nullptr;
+    /* FrameBorder *fr_border = nullptr;
+    Frame640 *fr_shr = nullptr; */
     uint8_t new_video = 0x01;
     uint8_t text_color = 0x0F0;
     uint8_t border_color = 0x00;
@@ -210,9 +211,9 @@ public:
 
     // these are pretty much static.
     SDL_FRect ii_frame_src = { 0.0, 0.0, 560.0f+42+49, 232.0 };
-    SDL_FRect gs_ii_frame_src = { 0.0, 0.0, 651.0, 232.0}; // dst is null - "scale to whatever" 651 is weird but that's the number.. 
-    SDL_FRect gs_shr_frame_src = { 0.0, 0.0, 744.0, 232.0}; // dst is null - "scale to whatever"
-    SDL_FRect frame_dst = { 0.0, 0.0, 651.0, 232.0};
+    //SDL_FRect gs_ii_frame_src = { 0.0, 0.0, 651.0, 232.0}; // dst is null - "scale to whatever" 651 is weird but that's the number.. 
+    //SDL_FRect gs_shr_frame_src = { 0.0, 0.0, 744.0, 232.0}; // dst is null - "scale to whatever"
+    //SDL_FRect frame_dst = { 0.0, 0.0, 651.0, 232.0};
 } display_state_t;
 
 //void txt_memory_write(uint16_t , uint8_t );
@@ -225,14 +226,14 @@ void display_dump_text_page(MMU_II *mmu, int page);
 //void display_engine_get_buffer(computer_t *computer, uint8_t *buffer, uint32_t *width, uint32_t *height);
 void display_update_video_scanner(display_state_t *ds);
 
-uint8_t txt_bus_read_C050(void *context, uint32_t address);
+/* uint8_t txt_bus_read_C050(void *context, uint32_t address);
 uint8_t txt_bus_read_C051(void *context, uint32_t address);
 uint8_t txt_bus_read_C052(void *context, uint32_t address);
 uint8_t txt_bus_read_C053(void *context, uint32_t address);
 uint8_t txt_bus_read_C054(void *context, uint32_t address);
 uint8_t txt_bus_read_C055(void *context, uint32_t address);
 uint8_t txt_bus_read_C056(void *context, uint32_t address);
-uint8_t txt_bus_read_C057(void *context, uint32_t address);
+uint8_t txt_bus_read_C057(void *context, uint32_t address); */
 
 void update_vgc_interrupt(display_state_t *ds, bool assert_now);
 void update_megaii_interrupt(display_state_t *ds, bool assert_now);
