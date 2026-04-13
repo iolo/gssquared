@@ -85,6 +85,21 @@ computer_t::computer_t(NClockII *clock) {
     video_system = new video_system_t(this);
     debug_window = new debug_window_t(this);
 
+    sys_event->registerHandler(SDL_EVENT_MOUSE_BUTTON_DOWN,[this](const SDL_Event &event ) {
+        if (event.button.button == SDL_BUTTON_RIGHT) {
+            old_speed = this->clock->get_clock_mode();
+            this->clock->set_clock_mode(CLOCK_14_3MHZ);
+            return true;
+        } else return false;
+        
+    });
+    sys_event->registerHandler(SDL_EVENT_MOUSE_BUTTON_UP,[this](const SDL_Event &event ) {
+        if (event.button.button == SDL_BUTTON_RIGHT) {
+            this->clock->set_clock_mode(old_speed);
+            return true;
+        } return false;
+    });
+    
     sys_event->registerHandler(SDL_EVENT_KEY_DOWN, [this](const SDL_Event &event) {
         int key = event.key.key;
         SDL_Keymod mod = event.key.mod;

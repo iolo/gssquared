@@ -122,6 +122,8 @@ struct computer_t {
 
     int powerup_reset_cycles = 2;
 
+    clock_mode_t old_speed;
+
     void set_clock(NClockII *clock); 
     inline void set_idle_percent(float idle_percent) { this->idle_percent = idle_percent; }
     inline float get_idle_percent() { return this->idle_percent; }
