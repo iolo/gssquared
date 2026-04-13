@@ -982,7 +982,7 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
         ds->vsg->set_display_shift(false); // no shift in Apple IIgs mode.
         ds->mon_mono.set_shift_enabled(false);
         ds->mon_ntsc.set_shift_enabled(false);
-        ds->mon_rgb.set_shift_enabled(false);
+        //ds->mon_rgb.set_shift_enabled(false);
         
         // Set default video scanner colors for Apple IIgs. (F, 6, 6)
         set_tbcolor(ds, 0xF0);

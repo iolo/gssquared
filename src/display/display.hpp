@@ -27,8 +27,8 @@
 
 #include "devices/displaypp/render/Monochrome560.hpp"
 #include "devices/displaypp/render/NTSC560.hpp"
-#include "devices/displaypp/render/GSRGB560.hpp"
-#include "devices/displaypp/generate/AppleII.cpp"
+//#include "devices/displaypp/render/GSRGB560.hpp"
+//#include "devices/displaypp/generate/AppleII.cpp"
 #include "devices/displaypp/VideoScanner.hpp"
 
 class VideoScanGenerator ;
@@ -180,7 +180,7 @@ public:
 
     Monochrome560 mon_mono;
     NTSC560 mon_ntsc;
-    GSRGB560 mon_rgb;
+    //GSRGB560 mon_rgb;
     MessageBus *mbus;
 
     // IIGS specific
