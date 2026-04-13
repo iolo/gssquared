@@ -336,10 +336,14 @@ void video_system_t::flip_display_scale_mode() {
 }
 
 void video_system_t::copy_screen() {
-    SDL_Rect irect = { (int)last_srcrect.x, (int)last_srcrect.y, (int)last_srcrect.w, (int)last_srcrect.h };
+    SDL_Rect srect = { (int)last_srcrect.x, (int)last_srcrect.y, (int)last_srcrect.w, (int)last_srcrect.h };
+    SDL_FRect trect = { last_srcrect.x, last_srcrect.y, last_srcrect.w, last_srcrect.h };
+    //SDL_SetTextureBlendMode(screencap_texture, SDL_BLENDMODE_NONE);
     SDL_SetRenderTarget(renderer, screencap_texture);
-    SDL_RenderTexture(renderer, last_texture, nullptr, nullptr);
-    SDL_Surface *surface = SDL_RenderReadPixels(renderer, &irect);
+    SDL_SetTextureBlendMode(last_texture, SDL_BLENDMODE_NONE);
+    // oops, this is scaling the image.
+    SDL_RenderTexture(renderer, last_texture, &trect, &trect); // ensure no scaling.
+    SDL_Surface *surface = SDL_RenderReadPixels(renderer, &srect);
     SDL_SetRenderTarget(renderer, nullptr);
     clip->Clip(surface);
     SDL_DestroySurface(surface);
