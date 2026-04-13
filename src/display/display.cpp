@@ -445,7 +445,6 @@ uint8_t txt_bus_read_C050(void *context, uint32_t address) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Graphics Mode\n");
     set_display_mode(ds, GRAPHICS_MODE);
     if (!ds->framebased) ds->video_scanner->set_graf();
-    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -460,7 +459,6 @@ uint8_t txt_bus_read_C051(void *context, uint32_t address) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Text Mode\n");
     set_display_mode(ds, TEXT_MODE);
     if (!ds->framebased) ds->video_scanner->set_text();
-    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -475,7 +473,6 @@ uint8_t txt_bus_read_C052(void *context, uint32_t address) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Full Screen\n");
     set_split_mode(ds, FULL_SCREEN);
     if (!ds->framebased) ds->video_scanner->set_full();
-    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -489,7 +486,6 @@ uint8_t txt_bus_read_C053(void *context, uint32_t address) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Split Screen\n");
     set_split_mode(ds, SPLIT_SCREEN);
     if (!ds->framebased) ds->video_scanner->set_mixed();
-    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -521,7 +517,6 @@ uint8_t txt_bus_read_C055(void *context, uint32_t address) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Switching to screen 2\n");
     //set_display_page2(ds);
     if (!ds->framebased) ds->video_scanner->set_page_2();
-    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -552,7 +547,6 @@ uint8_t txt_bus_read_C057(void *context, uint32_t address) {
     if (DEBUG(DEBUG_DISPLAY)) fprintf(stdout, "Set Hi-Res Mode\n");
     set_graphics_mode(ds, HIRES_MODE);
     if (!ds->framebased) ds->video_scanner->set_hires();
-    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -632,8 +626,6 @@ bool handle_display_event(display_state_t *ds, const SDL_Event &event) {
             if (config.videoSaturation > 1.0f) config.videoSaturation = 1.0f;
         }
         init_hgr_LUT();
-        //force_display_update(ds);
-        //ds->video_system->set_full_frame_redraw();
         static char msgbuf[256];
         snprintf(msgbuf, sizeof(msgbuf), "Hue set to: %f, Saturation to: %f\n", config.videoHue, config.videoSaturation);
         ds->event_queue->addEvent(new Event(EVENT_SHOW_MESSAGE, 0, msgbuf));
@@ -828,8 +820,6 @@ uint8_t display_read_C05EF(void *context, uint32_t address) {
     display_state_t *ds = (display_state_t *)context;
     ds->f_double_graphics = (address & 0x1); // this is inverted sense
     ds->video_scanner->set_dblres_f(!ds->f_double_graphics);
-    //update_line_mode(ds);
-    //ds->video_system->set_full_frame_redraw();
     return ds->mmu->floating_bus_read();
 }
 
@@ -837,8 +827,6 @@ void display_write_C05EF(void *context, uint32_t address, uint8_t value) {
     display_state_t *ds = (display_state_t *)context;
     ds->f_double_graphics = (address & 0x1); // this is inverted sense
     ds->video_scanner->set_dblres_f(!ds->f_double_graphics);
-    //update_line_mode(ds);
-    //ds->video_system->set_full_frame_redraw();
 }
 
 /* VBL, Mouse, 1 sec, 1/4 sec Interrupt Handling Section - IIgs specific registers */
@@ -1219,9 +1207,6 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
     });
 
     computer->register_shutdown_handler([ds]() {
-        //SDL_DestroyTexture(ds->screenTexture);
-        
-        //deinit_displayng();
         delete ds;
         return true;
     });
@@ -1248,19 +1233,15 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
 
             // 80col: force to 0
             ds->f_80col = false;
-            // TODO: this "80store" here should be "80col".
-            //ds->a2_display->set_80store(false); // TODO: check this, but it makes sense.
 
             ds->f_altcharset = false;
             ds->video_scanner->reset_80col();
             
             // ALTCHARSET: force to 0
             ds->video_scanner->reset_altchrset();
-            //ds->a2_display->set_char_set(ds->f_altcharset);
             
             // set page2 off. make sure also in mmu
             reset_page2(ds);
-            //ds->mmu->write(0xC054, 0x00); // also hacky
         }
         if (ds->computer->platform->id < PLATFORM_APPLE_IIGS) { // iie and below only
             // C05E: set ANC3 to 7M video mode. "set dblres" is opposite sense of ANC3 OFF.
@@ -1268,9 +1249,7 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
             ds->video_scanner->set_dblres();
             
             // LORES: switch reset
-            set_lores(ds);
-/*             ds->display_graphics_mode = LORES_MODE; // TODO: is this also on a II+?           
-            ds->video_scanner->set_lores(); */
+            set_lores(ds);  // TODO: is this also on a II+?   
         }
         // What about the II/II+????
         //update_line_mode(ds);
@@ -1280,7 +1259,7 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
     if (computer->platform->id == PLATFORM_APPLE_IIE || computer->platform->id == PLATFORM_APPLE_IIE_ENHANCED
     || computer->platform->id == PLATFORM_APPLE_IIE_65816 || computer->platform->id == PLATFORM_APPLE_IIGS) {
         ds->f_altcharset = false;
-        //ds->a2_display->set_char_set(ds->f_altcharset);
+
         mmu->set_C0XX_write_handler(0xC000, { ds_bus_write_C00X, ds });
         mmu->set_C0XX_write_handler(0xC001, { ds_bus_write_C00X, ds });
         mmu->set_C0XX_write_handler(0xC00C, { ds_bus_write_C00X, ds });
@@ -1315,27 +1294,7 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
         mmu->set_C0XX_read_handler(0xC02B, { display_read_C02B, ds });
     }
 
-    /* switch (ds->video_scanner_type) {
-        case Scanner_AppleIIgs:
-        case Scanner_AppleII:
-            calculate_border_rects(ds, false);
-            break;
-        case Scanner_AppleIIe:
-        case Scanner_AppleIIePAL:
-            calculate_border_rects(ds, true);
-            break;
-        default:
-            system_failure("Unsupported video scanner type in display engine init");
-            break;
-    } */
-
     if (computer->platform->id == PLATFORM_APPLE_IIE_65816 || computer->platform->id == PLATFORM_APPLE_IIGS) {
-        // allocate border and shr frame buffers.
-        /* ds->fr_border = new(std::align_val_t(64)) FrameBorder(53, 263, vs->renderer, PIXEL_FORMAT);
-        ds->fr_shr = new(std::align_val_t(64)) Frame640(640, 200, vs->renderer, PIXEL_FORMAT);
-        SDL_SetTextureScaleMode(ds->fr_border->get_texture(), SDL_SCALEMODE_NEAREST);
-        SDL_SetTextureScaleMode(ds->fr_shr->get_texture(), SDL_SCALEMODE_NEAREST); */
-
         mmu->set_C0XX_read_handler(0xC02E, { display_read_C02EF, ds });
         mmu->set_C0XX_read_handler(0xC02F, { display_read_C02EF, ds });
         //no display_read_C021;  actually floating bus all the time.
@@ -1360,7 +1319,6 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
     vs->register_frame_processor(0, [ds](bool force_full_frame) -> bool {
         bool ret;
         if (ds->framebased || force_full_frame) {
-            //update_flash_state(ds);
             ret = update_display_apple2(ds);
         } else {
             ret = update_display_apple2_cycle(ds);
@@ -1394,9 +1352,9 @@ void init_mb_device_display(computer_t *computer, SlotType_t slot) {
     init_mb_device_display_common(computer, slot, true);
 }
 
-void init_mb_device_display_frameonly(computer_t *computer, SlotType_t slot) {
+/* void init_mb_device_display_frameonly(computer_t *computer, SlotType_t slot) {
     init_mb_device_display_common(computer, slot, false);
-}
+} */
 
 void display_dump_file(MMU_II *mmu, const char *filename, uint16_t base_addr, uint16_t sizer) {
     FILE *fp = fopen(filename, "wb");

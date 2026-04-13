@@ -10732,7 +10732,7 @@ added a "valid slots" field to devices.
 
 ok, implemented the keyboard autorepeat! We now ignore autorepeated chars given to us by SDL; and track repeat intervals using frame counts, as long as any key is still down. The behavior seems to exactly replicate the GS keyboard so far.
 
-[ ] when we boot straight into ProDOS 8 on a 3.5 image, something hinky is occurring, where I can't get into control panel and ctrl-reset gives "system error 01 restart system"
+[x] when we boot straight into ProDOS 8 on a 3.5 image, something hinky is occurring, where I can't get into control panel and ctrl-reset gives "system error 01 restart system" ()
 
 Huh, yeah, IRQs are disabled. Why? the adb data register is perpetually full. It's ProDOS 1.1.1. So when we do the reset there are just too many unhandled interrupts because IRQ has been off? Ok, good theory, let's see..
 no, here's the sequence.
@@ -11168,7 +11168,7 @@ ok, I have the sync stuff working correctly now! The issue was confusion over wh
 
 ## Apr 4, 2026
 
-[ ] the API for the AppleII graphics and the VSG should be the same.  
+[-] the API for the AppleII graphics and the VSG should be the same. (deprecated, removed Apple II graphics)
 
 Especially now that we're going to have two VSG's (one RGB, one Composite).  But this brings back up the question, should we even still have the AppleII module, or, should we just make a wrapper for VSG that executes an entire frame at once, as in VPP? It's kind of a pain to maintain both sets of code. Actually I like that. 
 
@@ -11484,7 +11484,7 @@ ok problem now is I need to generate a border area for the Videx. I don't want t
 
 The AppleII video routines are finally being ripped out! At least from Display. I am going to reuse this code in the debugger for the "display arbitrary display page" and "display arbitrary memory as a display page".
 
-When we drop out of LS there is an interesting thing, the video seems to lose sync and resyncs.
+When we drop out of LS there is an interesting thing, the video seems to lose sync and resyncs. I think that is to be expected perhaps.
 
 I can rip out wherever we have this: set_full_frame_redraw
 
@@ -11492,3 +11492,8 @@ Somehow in all this stuff I have LS GS running at 180MHz.
 
 Wow there is a -lot- of old cruft in the display routines. I am ripping stuff out left and right that was related to several versions of display code ago, even older than the AppleII module. ooh, the old update_line_mode - gone! old dirty line table - gone!
 We now -only- set state in the Scanner, because that tells VideoGenerator everything it needs to know to render frames.
+
+Well now that we have done all this, we can do the NClock work to support speeds past 14M. Then we will have working ludicrous speeds on the GS. Perhaps we just want to determine one ludicrous speed and leave it at that. Figure out a multiplier that works and doesn't frame-drop?
+Then we can simplify the video logic even a little more. It will ALL be cycle-accurate, all the display interrupts etc will work.
+
+[ ] iie/65816 - missing composite shr. ctrl-reset does not reset video registers. The reset choices should be done on the basis of the scanner, not the platform.

@@ -117,7 +117,6 @@ video_system_t::video_system_t(computer_t *computer) {
         }
         if (key == SDLK_F2) {
             toggle_display_engine();
-            set_full_frame_redraw();
             return true;
         }
         if (key == SDLK_PRINTSCREEN) {
@@ -190,42 +189,6 @@ void video_system_t::hide(SDL_Window *window) {
 void video_system_t::show(SDL_Window *window) {
     SDL_ShowWindow(window);
 }
-
-#if 0
-void video_system_t::window_resize(const SDL_Event &event) {
-    // make sure this event is for the primary window.
-    if (event.window.windowID != SDL_GetWindowID(window)) {
-        return;
-    }
-
-    int new_w = event.window.data1;
-    int new_h = event.window.data2;
-
-    // Calculate new scale factors based on window size ratio
-    float new_scale_x = (float)new_w / BASE_WIDTH;
-    float new_scale_y = (float)new_h / (BASE_HEIGHT + border_height*2);
- 
-    // TODO: technically this works, but, we should adjust the border_width to center the image.
-    // Means borders should be in variable in the display_state_t.
-    if (new_scale_x > (new_scale_y / 2.0f)) {
-        new_scale_x = new_scale_y / 2.0f;
-    }
-
-    border_width = ((new_w / new_scale_x)- BASE_WIDTH) / 2;
-
-    printf("handle_window_resize: new_w: %d, new_h: %d new scale: %f, %f, border w: %d, h: %d\n", new_w, new_h, new_scale_x, new_scale_y, border_width, border_height);
-
-    SDL_SetRenderScale(renderer, new_scale_x, new_scale_y);
-    scale_x = new_scale_x;
-    scale_y = new_scale_y;
-    window_width = new_w;
-    window_height = new_h;
-
-    if (display_fullscreen_mode) { // shift the coords to center the image.        
-        fullscreen_x_shift = (((float)window_width / scale_x) - (42+49+560)) / 2.0f;
-    } else fullscreen_x_shift = 0.0f;
-}
-#endif
 
 /* Given new window width and height, calculate the target rectangle for the display. */
 void video_system_t::calculate_target_rect(int new_w, int new_h) {
@@ -335,11 +298,6 @@ void video_system_t::pop_mouse_capture() {
     display_capture_mouse(old_mouse_captured);
 }
 
-void video_system_t::set_full_frame_redraw() {
-    force_full_frame_redraw = true;
-}
-
-
 void video_system_t::send_engine_message() {
     static char buffer[256];
     const char *display_color_engine_names[] = {
@@ -354,19 +312,16 @@ void video_system_t::send_engine_message() {
 
 void video_system_t::toggle_display_engine() {
     display_color_engine = (display_color_engine_t)((display_color_engine + 1) % DM_NUM_COLOR_ENGINES);
-    set_full_frame_redraw();
     send_engine_message();
 }
 
 void video_system_t::set_display_engine(display_color_engine_t mode) {
     display_color_engine = mode;
-    set_full_frame_redraw();
     send_engine_message();
 }
 
 void video_system_t::set_display_mono_color(display_mono_color_t mode) {
     display_mono_color = mode;
-    set_full_frame_redraw();
 }
 
 void video_system_t::flip_display_scale_mode() {
@@ -379,7 +334,6 @@ void video_system_t::flip_display_scale_mode() {
         display_pixel_mode = DM_PIXEL_FUZZ;
         scale_mode = SDL_SCALEMODE_LINEAR;
     }
-    set_full_frame_redraw();
 }
 
 void video_system_t::copy_screen() {

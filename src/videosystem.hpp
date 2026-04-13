@@ -106,7 +106,6 @@ public:
     void raise(SDL_Window *window);
     void hide(SDL_Window *window);
     void show(SDL_Window *window);
-    void set_full_frame_redraw();
     void send_engine_message();
     void toggle_display_engine();
     void set_display_engine(display_color_engine_t mode);
