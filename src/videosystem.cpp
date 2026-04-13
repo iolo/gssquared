@@ -134,7 +134,22 @@ void video_system_t::set_window_title(const char *title) {
     SDL_SetWindowTitle(window, title);
 }
 
-void video_system_t::render_frame(SDL_Texture *texture, SDL_FRect *srcrect, SDL_FRect *dstrect, bool respect_mode /* , float offset */) {
+void video_system_t::render_frame(SDL_Texture *texture, SDL_FRect *srcrect, SDL_FRect *dstadj, bool respect_mode /* , float offset */) {
+
+    SDL_FRect adj_target;
+    if (dstadj) {
+        float scale_x = target.w / srcrect->w; // recalc the scale
+        float scale_y = target.h / srcrect->h; // recalc the scale
+        
+        float xadj = dstadj->w * scale_x;
+        float yadj = dstadj->h * scale_y;
+        adj_target.x = target.x + xadj;
+        adj_target.y = target.y + yadj;
+        adj_target.w = target.w - xadj*2;
+        adj_target.h = target.h - yadj*2;
+    } else {
+        adj_target = target;
+    }
 
     if (respect_mode) {
         if (display_pixel_mode == DM_PIXEL_FUZZ) {
@@ -146,7 +161,7 @@ void video_system_t::render_frame(SDL_Texture *texture, SDL_FRect *srcrect, SDL_
    /*  SDL_FRect dstrect_shifted = *dstrect;
     dstrect_shifted.x += fullscreen_x_shift; // center in fullscreen. */
 
-    SDL_RenderTexture(renderer, texture, srcrect, &target /* &dstrect_shifted */);
+    SDL_RenderTexture(renderer, texture, srcrect, &adj_target /* &dstrect_shifted */);
     last_texture = texture;
     last_srcrect = *srcrect;
 }
@@ -206,6 +221,7 @@ void video_system_t::window_resize(const SDL_Event &event) {
 }
 #endif
 
+/* Given new window width and height, calculate the target rectangle for the display. */
 void video_system_t::calculate_target_rect(int new_w, int new_h) {
     float new_aspect = (float)new_w / new_h;
     constexpr float aspect_epsilon = 0.001f;
@@ -239,9 +255,6 @@ void video_system_t::window_resize(const SDL_Event &event) {
         return;
     }
     calculate_target_rect(event.window.data1, event.window.data2);
-/*     int new_w = event.window.data1;
-    int new_h = event.window.data2; */
-    
 }
 
 display_fullscreen_mode_t video_system_t::get_window_fullscreen() {

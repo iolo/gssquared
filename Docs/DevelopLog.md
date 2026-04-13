@@ -11435,7 +11435,7 @@ ok, did I deal with all the new bugs? I want to push! it's ok, push it now and d
 
 ## Apr 12, 2026
 
-[ ] look into the registers that live in the FPI because those should be fast (not 1mhz).
+[x] look into the registers that live in the FPI because those should be fast (not 1mhz).
 
 Got these and they're now documneted in [AppleIIgs](AppleIIgs.md). Textfunk is not using any of these in the timing critical area. So my textfunk timing issue is elsewhere. Could still have some CPU instructions that work at the wrong speed, I didn't finish writing those tests.
 
@@ -11475,3 +11475,7 @@ ok so now we need to fix fullscreen. A window will be in one of three configurat
 if 1, we're fine. can draw will null rect.
 if 2, we need to calculate new scale based on aspect and Y.
 if 3, we need to calculate new scale based on aspect and X.
+
+ok problem now is I need to generate a border area for the Videx. I don't want to go thru rigamarole to draw into a bigger texture though that would certainly solve the problem.. instead of a dst rect, I can pass amounts to add to X and subtract from W in the dstrect. But call it dst_adjust.
+
+[x] implement (fake) border area for videx  
