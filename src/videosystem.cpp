@@ -73,7 +73,6 @@ video_system_t::video_system_t(computer_t *computer) {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     clear();
     present();
-    force_full_frame_redraw = true; // first time through!
 
     SDL_RaiseWindow(window);
 

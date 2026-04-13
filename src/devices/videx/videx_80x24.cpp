@@ -123,7 +123,7 @@ void update_display_videx(cpu_state *cpu, videx_data * videx_d) {
 
     int framedirty = 0;
     for (int line = 0; line < 24; line++) {
-        if (vs->force_full_frame_redraw || videx_d->line_dirty[line]) {
+        if (videx_d->line_dirty[line]) {
             videx_render_line(ds, videx_d, line);
             videx_d->line_dirty[line] = false;
             framedirty=1;
@@ -140,13 +140,12 @@ void update_display_videx(cpu_state *cpu, videx_data * videx_d) {
         memcpy(pixels, videx_d->buffer, VIDEX_SCREEN_WIDTH * VIDEX_SCREEN_HEIGHT * sizeof(RGBA_t));
         SDL_UnlockTexture(videx_d->videx_texture);
     }
-    vs->force_full_frame_redraw = false;
+
     static SDL_FRect dstrect = { 0.0f, 0.0f, (float)VIDEX_SCREEN_WIDTH, (float)VIDEX_SCREEN_HEIGHT };
 
     SDL_SetTextureBlendMode(videx_d->videx_texture, SDL_BLENDMODE_ADD); // double-draw this to increase brightness.
     SDL_FRect dstadj = { 0.0f, 0.0f, 42.0f, 20.0f };
-    /* vs->render_frame(videx_d->videx_texture, &dstrect, &ds->ii_borders[B_CEN][B_CEN].dst);
-    vs->render_frame(videx_d->videx_texture, &dstrect, &ds->ii_borders[B_CEN][B_CEN].dst); */
+
     vs->render_frame(videx_d->videx_texture, &dstrect, &dstadj);
     vs->render_frame(videx_d->videx_texture, &dstrect, &dstadj);
 }

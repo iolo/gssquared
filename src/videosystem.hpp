@@ -68,8 +68,6 @@ struct video_system_t {
 
     EventQueue *event_queue = nullptr;
 
-    bool force_full_frame_redraw = false;
-
     ClipboardImage *clip = nullptr;
 
     bool mouse_captured = false;
