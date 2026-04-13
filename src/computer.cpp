@@ -113,9 +113,24 @@ computer_t::computer_t(NClockII *clock) {
             }
             send_clock_mode_message(speed_new);
             return true; 
+        } else if (key == SDLK_INSERT) {
+            if (event.key.repeat == 1) return false; // ignore repeats otherwise it will forget the original speed
+            old_speed = this->clock->get_clock_mode();
+            this->clock->set_clock_mode(CLOCK_14_3MHZ);
+            return true;
         }
         return false;
     });
+    sys_event->registerHandler(SDL_EVENT_KEY_UP, [this](const SDL_Event &event) {
+        int key = event.key.key;
+        SDL_Keymod mod = event.key.mod;
+        if (key == SDLK_INSERT) {
+            this->clock->set_clock_mode(old_speed);
+            return true;
+        }
+        return false;
+    });
+
     sys_event->registerHandler(SDL_EVENT_QUIT, [this](const SDL_Event &event) {
         cpu->halt = HLT_USER;
         return true;
