@@ -1,7 +1,8 @@
 #pragma once
 
+#include <vector>
 #include <SDL3/SDL.h>
-#include <SDL3_ttf/SDL_ttf.h>
+//#include <SDL3_ttf/SDL_ttf.h>
 
 #include "cpu.hpp"
 #include "util/TextRenderer.hpp"
@@ -41,11 +42,11 @@ struct debug_window_t {
     UIContext ui_ctx;
     int font_line_height = 14;
     std::vector<Container_t *> containers;
-    Container_t *tab_container;
+    Container_t *tab_container, *step_container;
     MemoryWatch memory_watches;
     MemoryWatch breaks;
     uint32_t stepover_bp = 0;
-    bool step_out = false;
+    bool step_out_active = false;
     
     Disassembler *disasm = nullptr;
     Disassembler *step_disasm = nullptr;
@@ -89,4 +90,11 @@ struct debug_window_t {
 
 protected:
     void execute_command(const std::string& command);
+    void step_one();
+    void resume();
+    void step_over();
+    void step_out();
+    void trace_scroll_up(int lines = 1);
+    void trace_scroll_down(int lines = 1);
+    void trace_scroll(float y);
 };

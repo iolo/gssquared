@@ -50,6 +50,10 @@ debug_window_t::debug_window_t(computer_t *computer) {
     tab_container->set_position(25, 15);
     tab_container->size(400, 35);
     containers.push_back(tab_container);
+    step_container = new Container_t(&ui_ctx, CS);
+    step_container->set_position(600, 15);
+    step_container->size(400, 35);
+    containers.push_back(step_container);
 
     Style_t SS;
     //SS.background_color = 0x00A1F0FF; // active (20% brighter)
@@ -85,10 +89,46 @@ debug_window_t::debug_window_t(computer_t *computer) {
         toggle_panel(DEBUG_PANEL_MEMORY);
         return true;
     });
-
     tab_container->add(s3);
-
     tab_container->layout();
+
+    /* Button_t *b4 = new Button_t(&ui_ctx, "||", SS);
+    b4->size(35, 22);
+    step_container->add(b4); */
+    Button_t *b7 = new Button_t(&ui_ctx, ">", SS);
+    b7->size(35, 22);
+    b7->on_click([this](const SDL_Event& event) -> bool {
+        step_one();
+        return true;
+    });
+    step_container->add(b7);
+
+    Button_t *b6 = new Button_t(&ui_ctx, ">|", SS);
+    b6->size(35, 22);
+    b6->on_click([this](const SDL_Event& event) -> bool {
+        step_out();
+        return true;
+    });
+    step_container->add(b6);
+
+    Button_t *b8 = new Button_t(&ui_ctx, "^", SS);
+    b8->size(35, 22);
+    b8->on_click([this](const SDL_Event& event) -> bool {
+        step_over();
+        return true;
+    });
+    step_container->add(b8);
+
+    Button_t *b5 = new Button_t(&ui_ctx, ">>", SS);
+    b5->size(35, 22);
+    b5->on_click([this](const SDL_Event& event) -> bool {
+        resume();
+        return true;
+    });
+    step_container->add(b5);
+
+
+    step_container->layout();
 
     mon_textinput = new TextInput_t(&ui_ctx, "help", SS);
     mon_textinput->set_text_renderer(text_renderer);
@@ -135,9 +175,9 @@ bool debug_window_t::check_pre_breakpoint(cpu_state *cpu) {
 
 bool debug_window_t::check_post_breakpoint(system_trace_entry_t *entry) {
     // check if the current instruction is a breakpoint.
-    if (step_out) {
+    if (step_out_active) {
         if ((entry->opcode == 0x60) || (entry->opcode == 0x6B)) {
-            step_out = false;
+            step_out_active = false;
             return true;
         }
     }
@@ -581,6 +621,52 @@ bool debug_window_t::handle_pane_event_monitor(SDL_Event &event) {
     return false;
 }
 
+void debug_window_t::step_one() {
+    computer->execution_mode = EXEC_STEP_INTO;
+    computer->instructions_left = 1;
+    stepover_bp = 0; // clear for good measure
+}
+void debug_window_t::resume() {
+    computer->execution_mode = EXEC_NORMAL;
+    computer->instructions_left = 0;
+    view_position = 0;
+    stepover_bp = 0; // clear for good measure
+}
+void debug_window_t::step_over() {
+    if (computer->execution_mode != EXEC_STEP_INTO) return; // if not in step ignore
+    stepover_bp = (cpu->pb << 16) | cpu->pc;
+    // trace has not happened yet!
+    uint8_t opcode = mmu->read(stepover_bp);
+    if ((opcode == 0x20) || (opcode == 0xFC)) {
+        stepover_bp += 3;
+    } else if (opcode == 0x22) {
+        stepover_bp += 4;
+    }
+    printf("Step over BP: %06X\n", stepover_bp);
+    computer->execution_mode = EXEC_NORMAL;
+}
+void debug_window_t::step_out() {
+    if (computer->execution_mode != EXEC_STEP_INTO) return; // if not in step ignore
+    step_out_active = true;
+    computer->execution_mode = EXEC_NORMAL;
+}
+void debug_window_t::trace_scroll_up(int lines) {
+    view_position += lines;
+}
+void debug_window_t::trace_scroll_down(int lines) {
+    view_position -= lines;
+    if (view_position < 0) {
+        view_position = 0;
+    }
+}
+void debug_window_t::trace_scroll(float y) {
+    if (y < 0 && y > -1) y = -1;
+    if (y > 0 && y < 1) y = 1;
+    view_position += y;
+    if (view_position < 0) {
+        view_position = 0;
+    }
+}
 bool debug_window_t::handle_event(SDL_Event &event) {
     if (event.window.windowID == window_id) {
         if (handle_pane_event_monitor(event)) {
@@ -597,66 +683,62 @@ bool debug_window_t::handle_event(SDL_Event &event) {
             case SDL_EVENT_WINDOW_RESIZED:
                 resize(event.window.data1, event.window.data2);
                 break;
+            case SDL_EVENT_MOUSE_WHEEL:
+                trace_scroll(event.wheel.y);
+                break;
             case SDL_EVENT_KEY_DOWN:
-                if (event.key.key == SDLK_SPACE) {
-                    computer->execution_mode = EXEC_STEP_INTO;
-                    computer->instructions_left = 1;
-                    stepover_bp = 0; // clear for good measure
-                }
-                if (event.key.key == SDLK_RETURN) {
-                    computer->execution_mode = EXEC_NORMAL;
-                    computer->instructions_left = 0;
-                    view_position = 0;
-                    stepover_bp = 0; // clear for good measure
-                }
-                // TODO: add Step over MLI call here for Joshua Bell
-                // check jsr target to see if it's MLI. MGTK (etc) use the same calling convention but a different entry point so... a key is great, or configurable list.
-                if (event.key.key == SDLK_O) {
-                    if (computer->execution_mode != EXEC_STEP_INTO) break; // if not in step ignore
-                    stepover_bp = (cpu->pb << 16) | cpu->pc;
-                    // trace has not happened yet!
-                    uint8_t opcode = mmu->read(stepover_bp);
-                    if ((opcode == 0x20) || (opcode == 0xFC)) {
-                        stepover_bp += 3;
-                    } else if (opcode == 0x22) {
-                        stepover_bp += 4;
-                    }
-                    printf("Step over BP: %06X\n", stepover_bp);
-                    computer->execution_mode = EXEC_NORMAL;
-                }
-                // Step Up / Out - run until an RTS or RTL has executed. (R for 'Return')
-                if (event.key.key == SDLK_R) {
-                    if (computer->execution_mode != EXEC_STEP_INTO) break; // if not in step ignore
-                    step_out = true;
-                    computer->execution_mode = EXEC_NORMAL;
+                switch (event.key.key) {
+                    case SDLK_SPACE: step_one(); break;
+                    case SDLK_RETURN: 
+                        if (event.key.mod & SDL_KMOD_CTRL) {
+                            if (window_open) {
+                                set_closed();
+                            } else {
+                                set_open();
+                            }
+                        } else resume();
+                        break;
+                    case SDLK_O: step_over(); break;
+                    case SDLK_R: step_out(); break;
+                    case SDLK_UP: trace_scroll_up(1); break;
+                    case SDLK_DOWN: trace_scroll_down(1); break;
+                    case SDLK_PAGEUP: trace_scroll_up(lines_in_view_area); break;
+                    case SDLK_PAGEDOWN: trace_scroll_down(lines_in_view_area); break;
+                    case SDLK_HOME: view_position = cpu->trace_buffer->count - lines_in_view_area; break;
+                    case SDLK_END: view_position = 0; break;
+                    case SDLK_T: cpu->trace = !cpu->trace; break;
                 }
 
-                if (event.key.key == SDLK_RETURN && event.key.mod & SDL_KMOD_CTRL) {
+        
+                // TODO: add Step over MLI call here for Joshua Bell
+                // check jsr target to see if it's MLI. MGTK (etc) use the same calling convention but a different entry point so... a key is great, or configurable list.
+
+                // Step Up / Out - run until an RTS or RTL has executed. (R for 'Return')
+
+                /* if (event.key.key == SDLK_RETURN && event.key.mod & SDL_KMOD_CTRL) {
                     if (window_open) {
                         set_closed();
                     } else {
                         set_open();
                     }
-                }
-                if (event.key.key == SDLK_UP) {
-                    view_position++;
-                }
-                if (event.key.key == SDLK_DOWN) {
-                    view_position--;
-                    if (view_position < 0) {
-                        view_position = 0;
-                    }
+                } */
+                /* if (event.key.key == SDLK_UP) {
+                    trace_scroll_up();
+                } */
+                /* if (event.key.key == SDLK_DOWN) {
+                    trace_scroll_down();
                 }
                 if (event.key.key == SDLK_PAGEUP) {
                     view_position += lines_in_view_area;
-                }
-                if (event.key.key == SDLK_PAGEDOWN) {
+                } */
+                /* if (event.key.key == SDLK_PAGEDOWN) {
+                    
                     view_position -= lines_in_view_area;
                     if (view_position < 0) {
                         view_position = 0;
                     }
-                }
-                if (event.key.key == SDLK_HOME) {
+                } */
+                /* if (event.key.key == SDLK_HOME) {
                     view_position = cpu->trace_buffer->count - lines_in_view_area;
                 }
                 if (event.key.key == SDLK_END) {
@@ -664,7 +746,7 @@ bool debug_window_t::handle_event(SDL_Event &event) {
                 }
                 if (event.key.key == SDLK_T) {
                     cpu->trace = !cpu->trace;
-                }
+                } */
                 break;
             default:
                 for (Container_t *container : containers) {
