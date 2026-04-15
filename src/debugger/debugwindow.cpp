@@ -641,6 +641,9 @@ void debug_window_t::step_over() {
         stepover_bp += 3;
     } else if (opcode == 0x22) {
         stepover_bp += 4;
+    } else { // to "step over" a non-subroutine call it's just one more instruction.
+        computer->instructions_left = 1;
+        return;
     }
     printf("Step over BP: %06X\n", stepover_bp);
     computer->execution_mode = EXEC_NORMAL;
