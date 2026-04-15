@@ -267,7 +267,7 @@ void mb_t1_timer_callback(uint64_t instanceID, void *user_data) {
             mb_6522_propagate_interrupt(mb_d);
         }
         // We don't schedule a next interrupt - that is only done when writing to T1C-H.
-        // and we don't reset the counter to the latch, we continue decrementing from 0.
+        // and we don't reset the counter to the latch, we continue decrementing from 0. <- this is wrong. counter -should- reset.
 
         tc->t1_oneshot_pending = 0;
     }

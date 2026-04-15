@@ -11484,7 +11484,7 @@ ok problem now is I need to generate a border area for the Videx. I don't want t
 
 The AppleII video routines are finally being ripped out! At least from Display. I am going to reuse this code in the debugger for the "display arbitrary display page" and "display arbitrary memory as a display page".
 
-When we drop out of LS there is an interesting thing, the video seems to lose sync and resyncs. I think that is to be expected perhaps.
+When we drop out of LS there is an interesting thing, the video seems to lose sync and resyncs. I think that is to be expected perhaps. (oh, or are we clearing the scanbuffer there and don't need to any more?)
 
 I can rip out wherever we have this: set_full_frame_redraw
 
@@ -11497,3 +11497,50 @@ Well now that we have done all this, we can do the NClock work to support speeds
 Then we can simplify the video logic even a little more. It will ALL be cycle-accurate, all the display interrupts etc will work.
 
 [ ] iie/65816 - missing composite shr. ctrl-reset does not reset video registers. The reset choices should be done on the basis of the scanner, not the platform.
+
+Hm, Render::set_shift_enabled does not seem to be used any more? I don't seem to ever set it to true. ah, it's because Render constructor defaults it to true. So technically's it's set on II+ (though of course II+ won't activate any 80 modes). Ah, so it's going to be offset on GS in composite. Yet it's not. Hm, should look into this some. ok, it's defaults to on, but then the display GS setup stanza turns it off. makes sense.
+
+Videx screencap not right. it's not tall enough. Also, the screencap is blending, not overwriting.
+
+## Apr 14, 2026
+
+I'm looking at #94 again. I have had a little trouble parsing the info, but it looks now that there are several concerns raised here.
+
+1. IRQ and latch->counter sets should occur when the counter would have reached 0xFFFE, not 0xFFFF.
+2. the update of the counter with the latch value should be set regardless whether it is in one-shot mode or in continuous mode for T1 timer
+3. there may still be an issue with how/when the 6502 is detecting and triggering the IRQ.
+
+on 1, this means the counter sequence is:
+```
+N N-1 N-2 N-3 ... 0 FFFF N
+```
+where it resets from FFFF to N
+
+In the test case, he is setting the latch/counter to 0, so the sequence is 
+0 FFFF 0 FFFF 0 FFFF
+
+On 2, the image he shared from the 6522 does show T1 count resetting. In the example of this demo, it should reset to 0!
+in test program, ACR is 0 which is one-shot. I tried just setting in there but it ignored me, maybe because there is no repeat interrupt set and thus no schedule.
+
+I am thinking of breaking the 6522 logic into its own class for testing purposes. Way faster to instrument in a test harness and printf than to boot the emulator and single step all the time. Would also make it possible to test using single cycle increments, for clarity. OK then!
+
+I could also add the cpu to the harness with his test program. instead of JSR FDDA do STA xxxx where XXXX is a fake I/O address and the harness will print values written to it.
+Have a method update_cycles which will update the state machine to the specified cycle number. We will call this ourselves on a register read/write, or on executing a scheduler callback.
+
+## Apr 15, 2026
+
+Is this going to have an issue not running every cycle? e.g. will interrupts arrive late? So say we are continuous mode, and set it to 0. (I don't know if anyone acutally does this..) it's going to try to trigger an interrupt every 2 cycles. we have instructions that are 7 cycles or more. You can't interrupt an instruction, but, it might matter where in an instruction an interrupt is triggered because "irq is polled on the penultimate cycle of an instruction". So we need to know if it triggered two cycles ago or more (checked at the top of our CPU loop). but if we only ever assert interrupts at the end of an instruction, that will never happen.
+
+This would all be WAY easier to reason about if we can call the MB every cycle. OK, so let's map out what that looks like, and we can try it out and see if I can accept it.
+1. a callback is registered with NClock.
+1. the callback ticks the MB one cycle.
+   1. the counters tick; 
+   1. IRQs are checked; etc.
+1. irq_assert, on a transition from IRQ deassert to assert, records the cycle count of that event. (if already in IRQ and another IRQ comes in, disregard)
+1. When there is a register change:
+   1. emit partial frame of samples up to current cycle, into a buffer we accumulate into.
+1. At frame time, render the rest of the frame and enqueue.
+
+Something like this might be required to fix the ensoniq handling also.
+
+Let's create a new branch for this.
