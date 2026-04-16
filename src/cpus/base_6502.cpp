@@ -65,7 +65,8 @@ public:
 
     inline void incr_cycles(cpu_state *cpu) { 
         // this has the loss down to 13emhz.
-        cpu->irq_pipe = (cpu->irq_pipe << 1) | ((!cpu->I & cpu->irq_asserted));
+        //cpu->irq_pipe = (cpu->irq_pipe << 1) | ((!cpu->I & cpu->irq_asserted));
+        cpu->irq_pipe = (cpu->irq_pipe << 1) | (cpu->irq_asserted);
         // These two lines cost us 20 eMHz!
         /* cpu->irq_sample1 = cpu->irq_sample0;
         cpu->irq_sample0 = (!cpu->I) ? cpu->irq_asserted : 0; */
@@ -2141,7 +2142,7 @@ int execute_next(cpu_state *cpu) override {
     )
 
     //if (!cpu->EFFI && cpu->irq_asserted) { // if IRQ is not disabled, and IRQ is asserted, handle it.
-    if (cpu->irq_pipe & 0x02) { // look back 2 cycles for IRQ assertion
+    if (!cpu->I && (cpu->irq_pipe & 0x02)) { // look back 2 cycles for IRQ assertion
         if constexpr ((CPUTraits::has_65816_ops)) {
             if constexpr (!CPUTraits::e_mode) push_byte(cpu, cpu->pb);
             push_word(cpu, cpu->pc); // push current PC

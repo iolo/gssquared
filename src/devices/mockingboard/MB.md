@@ -50,6 +50,9 @@ in cpux->incr_cycle, we do:
 at the top of an instruction, we do:
     if irq_sample1 .. do IRQ
 
+This is AppleWin discussing the same thing:
+https://github.com/AppleWin/AppleWin/issues/718
+
 ## When does change to I inhibit bit take effect
 
 https://gemini.google.com/app/fce7ab356521bfbd
@@ -64,6 +67,10 @@ I have a bunch of cross-dependency between BaseCPU and cpu_state. I should do so
 
 cpu_state->core is pretty much unused; deprecate
 
+# Comparing Production 6522 to Test Harness 6522
+
+Next step is to harness the existing 6522 as-is to see how it compares to the cycle-by-cycle one.
+
 
 # Testing Approach
 
@@ -72,3 +79,36 @@ ok we've got a simple harness that is a sequence of 'instructions' that load a 6
 So now I guess we can take this, do a 2nd one, insert a cpu with an nclock with a special incr_cycle that ticks the 6522. Then I can run this  test code against it.
 
 I implemented the 2-cycle lookback, So none of this so far has made any difference in the operation of irqtimetest. It still prints a single 0001 and then exits. and I lost 12eMHz. Need to run this test on real hardware, because it's not clear that he has done that.
+
+## arrekusu - iigs irq test now largely failing.
+
+main fails the QTR and 1 sec IRQ tests.
+mbpercycle additionally fails the SCB and VBL tests.
+I have changed behavior likely for RTI and PLP - check those routines to see if they are being modified in the correct cycles ("these should operate immediately").
+
+## issue 94
+
+The op insists if an IRQ is pending before CLI, and you CLI then SEI that the SEI should be interrupted. i.e. should go from CLI to IRQ.
+his test program does indeed count from 1 to 100 in applewin.
+is it 100 hex, not 100 decimal, so 256 interrupts.
+likely what is expected here is that immediately after RTI it should trigger again.
+yah yah. So it's turning the interrupt off after executing the IRQ routine x100 times.
+Which means it's expecting:
+interrupt immediately after CLI
+and then again immediately after RTI
+
+OK I can produce his desired results if I:
+sense IRQ in 2nd to last cycle
+gate with inhibit at top of instruction
+this also makes arrekusu SCB and VBL tests pass again.
+(the QTR and SEC are still borked so that is something else).
+And I'm at 258MHz peak, so I have only lost a few MHz at this point.
+
+The question remains: has his test program been run on actual hardware and has the behavior above been demonstrated to be correct?
+(this does not resolve the Deater demo chiptunes player issues, which are likely more related to 6522 timing issues).
+
+## mb-audit
+
+Correctly identifies the mockingboard with two 6522 chips.
+fails Test 11:04:00, Expected F1 Actual F0
+this is a counter that's off by one.
