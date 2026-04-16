@@ -46,8 +46,8 @@ void cpu_state::reset() {
     clock_stopped = false;
     I = 1; // set interrupt flag.
     //skip_next_irq_check = 0;
-    ICHANGE = false;
-    EFFI = 0;
+    //ICHANGE = false;
+    //EFFI = 0;
     rdy = false;
     //pc = read_word(RESET_VECTOR);
     core->reset(this);

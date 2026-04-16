@@ -37,7 +37,7 @@ class InterruptController {
     
     // Callback to notify when IRQ state changes
     // Parameter is true if any IRQ is currently asserted
-    std::function<void(uint64_t)> irq_receiver;
+    std::function<void(bool)> irq_receiver;
 
     public:
     InterruptController() { 
@@ -82,7 +82,7 @@ class InterruptController {
 
     // Register a callback to receive IRQ state updates
     // The callback receives true when any IRQ is asserted, false when all are cleared
-    void register_irq_receiver(std::function<void(uint64_t)> receiver) {
+    void register_irq_receiver(std::function<void(bool)> receiver) {
         irq_receiver = std::move(receiver);
     }
     
@@ -115,7 +115,7 @@ class InterruptController {
     // Call this after IRQ state changes to notify the receiver
     void notify_irq_receiver() {
         if (irq_receiver) {
-            irq_receiver(irq_asserted);
+            irq_receiver(irq_asserted ? true : false);
         }
     }
 

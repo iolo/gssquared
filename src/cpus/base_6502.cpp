@@ -63,6 +63,16 @@ public:
     CPU6502Core(NClock *clock) : BaseCPU(clock) {
     }
 
+    inline void incr_cycles(cpu_state *cpu) { 
+        // this has the loss down to 13emhz.
+        cpu->irq_pipe = (cpu->irq_pipe << 1) | ((!cpu->I & cpu->irq_asserted));
+        // These two lines cost us 20 eMHz!
+        /* cpu->irq_sample1 = cpu->irq_sample0;
+        cpu->irq_sample0 = (!cpu->I) ? cpu->irq_asserted : 0; */
+        //printf(">> [%llu] [%llu %llu]\n", this->clock->get_cycles(), cpu->irq_sample1, cpu->irq_sample0);
+        this->clock->incr_cycles(); 
+    }
+
     void reset(cpu_state* cpu) override {
         cpu->clock_stopped = false;
         if constexpr (CPUTraits::has_65816_ops) {
@@ -76,12 +86,12 @@ public:
             cpu->_M = 1; // 8 bit M and X
             cpu->_X = 1;
             cpu->D = 0; // disable decimal mode
-            cpu->EFFI = 0;
+            //cpu->EFFI = 0;
             cpu->rdy = false;
             printf("stack init: %04X\n", cpu->sp);
         } else { // TODO: confirm this is correct for all CPUs and then take out of the if above.
             cpu->I = 1;
-            cpu->EFFI = 1;    
+            //cpu->EFFI = 1;    
         }
 
         // fill in with register reset logic.
@@ -108,17 +118,17 @@ inline word_t word(uint8_t lo, uint8_t hi) { return lo | (hi << 8); }
 */
 inline uint8_t bus_read(cpu_state *cpu, uint32_t addr) {
     uint8_t data = cpu->mmu->read(addr & 0xFFFFFF);
-    incr_cycles();
+    incr_cycles(cpu);
     return data;
 }
 inline void bus_write(cpu_state *cpu, uint32_t addr, uint8_t data) {
     cpu->mmu->write(addr & 0xFFFFFF, data);
-    incr_cycles();
+    incr_cycles(cpu);
 }
 
 inline uint8_t vp_read(cpu_state *cpu, uint32_t addr) {
     uint8_t data = cpu->mmu->vp_read(addr);
-    incr_cycles();
+    incr_cycles(cpu);
     return data;
 }
 
@@ -131,7 +141,7 @@ inline uint8_t vp_read(cpu_state *cpu, uint32_t addr) {
 // Normal phantom read - always performs
 inline void phantom_read(cpu_state *cpu, uint32_t address) {
     cpu->mmu->read(address);
-    incr_cycles();
+    incr_cycles(cpu);
 }
 
 // Phantom read - only performs if full_phantom_reads is true. This is used for PRs that just re-read program counter etc and can't affect I/O in Apple II..
@@ -139,13 +149,13 @@ inline void phantom_read_ign(cpu_state *cpu, uint32_t address) {
     if constexpr (CPUTraits::full_phantom_reads) {
         cpu->mmu->read(address);
     }
-    incr_cycles();
+    incr_cycles(cpu);
 }
 
 // Phantom write - always performs
 inline void phantom_write(cpu_state *cpu, uint32_t address, uint8_t value) {
     cpu->mmu->write(address, value);
-    incr_cycles();
+    incr_cycles(cpu);
 }
 
 // Ignorable phantom write. (Not sure this ever happens..)
@@ -153,7 +163,7 @@ inline void phantom_write_ign(cpu_state *cpu, uint32_t address, uint8_t value) {
     if constexpr (CPUTraits::full_phantom_reads) {
         cpu->mmu->write(address, value);
     }
-    incr_cycles();
+    incr_cycles(cpu);
 }
 
 /*** Data Memory Accessors */
@@ -188,7 +198,7 @@ inline uint32_t make_address_long(cpu_state *cpu, uint16_t address) {
 /* inline byte_t read_byte(cpu_state *cpu, uint16_t address) {
     uint32_t eaddr = make_address_long(cpu, address);
     uint8_t value = cpu->mmu->read(eaddr);
-    incr_cycles();
+    incr_cycles(cpu);
     TRACE(cpu->trace_entry.eaddr = eaddr; cpu->trace_entry.data = value;)
     return value;
 } */
@@ -196,7 +206,7 @@ inline uint32_t make_address_long(cpu_state *cpu, uint16_t address) {
 /* inline void write_byte(cpu_state *cpu, uint16_t address, byte_t value) {
     uint32_t eaddr = make_address_long(cpu, address);
     cpu->mmu->write(eaddr, value);
-    incr_cycles();
+    incr_cycles(cpu);
     TRACE(cpu->trace_entry.eaddr = eaddr; cpu->trace_entry.data = value;)
 } */
 
@@ -214,9 +224,9 @@ inline word_t read_word(cpu_state *cpu, uint16_t address) {
 inline void write_word(cpu_state *cpu, uint16_t address, word_t value) {
     uint32_t eaddr = make_address_long(cpu, address);
     cpu->mmu->write(eaddr, word_lo(value));
-    incr_cycles();
+    incr_cycles(cpu);
     cpu->mmu->write(eaddr + 1, word_hi(value));
-    incr_cycles();
+    incr_cycles(cpu);
     TRACE(cpu->trace_entry.eaddr = eaddr; cpu->trace_entry.data = value;)
 }
 
@@ -385,7 +395,7 @@ inline uint32_t _PC(cpu_state *cpu) {
 
 inline uint8_t fetch_pc(cpu_state *cpu) {
     uint8_t b = cpu->mmu->read(_PC(cpu));
-    incr_cycles();
+    incr_cycles(cpu);
     cpu->pc++;
     return b;
 }
@@ -1315,7 +1325,7 @@ inline void add_and_set_flags(cpu_state *cpu, uint8_t N) {
         if constexpr (CPUTraits::has_65c02_ops) {
             // TODO: handle V flag
             cpu->V =  !((M ^ N) & 0x80) && ((M ^ S8) & 0x80); // from 6502.org article https://www.righto.com/2012/12/the-6502-overflow-flag-explained.html?m=1
-            incr_cycles();
+            incr_cycles(cpu);
         }
         set_n_z_flags(cpu, cpu->a_lo);
 #else
@@ -1487,7 +1497,7 @@ inline void subtract_and_set_flags(cpu_state *cpu, uint8_t N) {
         cpu->a_lo = int_to_bcd(S8);
         if constexpr (CPUTraits::has_65c02_ops) {
             // TODO: handle V flag
-            incr_cycles();
+            incr_cycles(cpu);
         }
         set_n_z_flags(cpu, cpu->a_lo);
 #else
@@ -1525,7 +1535,7 @@ inline void subtract_and_set_flags(cpu_state *cpu, word_t N) {
         cpu->a_lo = int_to_bcd(S8);
         if constexpr (CPUTraits::has_65c02_ops) {
             // TODO: handle V flag
-            incr_cycles();
+            incr_cycles(cpu);
         }
         set_n_z_flags(cpu, cpu->a_lo);
 #else
@@ -1570,10 +1580,10 @@ inline void branch_if(cpu_state *cpu, uint8_t N, bool condition) {
     if (condition) {
         cpu->pc = cpu->pc + (int8_t) N;
         // branch taken uses another clock to update the PC
-        incr_cycles(); 
+        incr_cycles(cpu); 
         /* If a branch is taken and the target is on a different page, this adds another CPU cycle (4 in total). */
         if ((oaddr & 0xFF00) != (taddr & 0xFF00)) {
-            incr_cycles();
+            incr_cycles(cpu);
         }
     }
 }
@@ -1597,7 +1607,7 @@ inline void branch_if(cpu_state *cpu, uint8_t N, bool condition) {
 /* inline zpaddr_t get_operand_address_zeropage_x(cpu_state *cpu) {
     zpaddr_t zpaddr = read_byte_from_pc(cpu);
     zpaddr_t taddr = zpaddr + cpu->x_lo; // make sure it wraps.
-    incr_cycles(); // ZP,X adds a cycle.
+    incr_cycles(cpu); // ZP,X adds a cycle.
     TRACE(cpu->trace_entry.operand = zpaddr; cpu->trace_entry.eaddr = taddr; )
     return taddr;
 } */
@@ -1664,7 +1674,7 @@ inline absaddr_t get_operand_address_absolute_indirect_x(cpu_state *cpu) {
 /* inline uint16_t get_operand_address_indirect_x(cpu_state *cpu) {
     zpaddr_t zpaddr = read_byte_from_pc(cpu);
     absaddr_t taddr = read_word(cpu,(uint8_t)(zpaddr + cpu->x_lo)); // make sure it wraps.
-    incr_cycles();
+    incr_cycles(cpu);
     TRACE(cpu->trace_entry.operand = zpaddr; cpu->trace_entry.eaddr = taddr;)
     return taddr;
 } */
@@ -1675,7 +1685,7 @@ inline absaddr_t get_operand_address_absolute_indirect_x(cpu_state *cpu) {
     absaddr_t taddr = iaddr + cpu->y_lo;
 
     if ((iaddr & 0xFF00) != (taddr & 0xFF00)) {
-        incr_cycles();
+        incr_cycles(cpu);
     }
     //printf("zpaddr: %02X iaddr: %04X taddr: %04X\n", zpaddr, iaddr, taddr);
     TRACE(cpu->trace_entry.operand = zpaddr; cpu->trace_entry.eaddr = taddr;)
@@ -1730,7 +1740,7 @@ inline void store_operand_zeropage_indirect_x(cpu_state *cpu, byte_t N) {
 
 /* inline void store_operand_zeropage_indirect_y(cpu_state *cpu, byte_t N) {
     absaddr_t addr = get_operand_address_indirect_y(cpu);
-    incr_cycles(); // TODO: where should this extra cycle actually go?
+    incr_cycles(cpu); // TODO: where should this extra cycle actually go?
     write_byte(cpu,addr, N);
     TRACE(cpu->trace_entry.data = N;)
 } */
@@ -1756,7 +1766,7 @@ inline uint16_t address_relative_long(cpu_state *cpu) {
 /* inline void dec_operand(cpu_state *cpu, absaddr_t addr) {
     byte_t N = read_byte(cpu,addr);
     N--;
-    incr_cycles();
+    incr_cycles(cpu);
     write_byte(cpu,addr, N);
     set_n_z_flags(cpu, N);
     TRACE( cpu->trace_entry.data = N;)
@@ -1786,7 +1796,7 @@ inline byte_t logical_shift_right(cpu_state *cpu, byte_t N) {
     N = N >> 1;
     cpu->C = C;
     set_n_z_flags(cpu, N);
-    incr_cycles();
+    incr_cycles(cpu);
     return N;
 }
 
@@ -1803,7 +1813,7 @@ inline byte_t arithmetic_shift_left(cpu_state *cpu, byte_t N) {
     N = N << 1;
     cpu->C = C;
     set_n_z_flags(cpu, N);
-    incr_cycles();
+    incr_cycles(cpu);
     TRACE(cpu->trace_entry.data = N;)
     return N;
 }
@@ -1823,7 +1833,7 @@ inline byte_t rotate_right(cpu_state *cpu, byte_t N) {
     N |= (cpu->C << 7);
     cpu->C = C;
     set_n_z_flags(cpu, N);
-    incr_cycles();
+    incr_cycles(cpu);
     TRACE(cpu->trace_entry.data = N;)
     return N;
 }
@@ -1842,7 +1852,7 @@ inline byte_t rotate_left(cpu_state *cpu, byte_t N) {
     N |= cpu->C;
     cpu->C = C;
     set_n_z_flags(cpu, N);
-    incr_cycles();
+    incr_cycles(cpu);
     TRACE(cpu->trace_entry.data = N;)
     return N;
 }
@@ -1869,7 +1879,7 @@ inline void push_byte(cpu_state *cpu, byte_t N) {
         bus_write(cpu,(uint16_t)(0x0100 | cpu->sp_lo), N);
         cpu->sp = (uint8_t)(cpu->sp - 1);
     }
-    //incr_cycles();
+    //incr_cycles(cpu);
     TRACE(cpu->trace_entry.data = N;)
 }
 
@@ -1887,14 +1897,14 @@ inline byte_t pop_byte(cpu_state *cpu) {
         cpu->sp = (uint8_t)(cpu->sp + 1);
         N = bus_read(cpu,(uint16_t)(0x0100 | cpu->sp_lo));
     }
-    //incr_cycles();
+    //incr_cycles(cpu);
     TRACE(cpu->trace_entry.data = N;)
     return N;
 }
 
 inline byte_t pop_byte_nocycle(cpu_state *cpu) {
     cpu->sp = (uint8_t)(cpu->sp + 1);
-    //incr_cycles();
+    //incr_cycles(cpu);
     byte_t N = bus_read(cpu,(uint16_t)(0x0100 | cpu->sp_lo));
     TRACE(cpu->trace_entry.data = N;)
     return N;
@@ -1922,7 +1932,7 @@ inline void push_byte_new(cpu_state *cpu, byte_t N) {
         // compile-time assert failure here.
         static_assert(!CPUTraits::has_65816_ops, "push_byte_new called in 6502 mode");
     }
-    //incr_cycles();
+    //incr_cycles(cpu);
     TRACE(cpu->trace_entry.data = N;)
 }
 
@@ -1936,7 +1946,7 @@ inline void push_word_new(cpu_state *cpu, word_t N) {
         // compile-time assert failure here.
         static_assert(!CPUTraits::has_65816_ops, "push_word_new called in 6502 mode");
     }
-    //incr_cycles();
+    //incr_cycles(cpu);
     TRACE(cpu->trace_entry.data = N;)
 }
 
@@ -1948,7 +1958,7 @@ inline byte_t pop_byte_new(cpu_state *cpu) {
     } else {
         static_assert(!CPUTraits::has_65816_ops, "pop_byte_new called in 6502 mode");
     }
-    //incr_cycles();
+    //incr_cycles(cpu);
     TRACE(cpu->trace_entry.data = N;)
     return N;
 }
@@ -1963,7 +1973,7 @@ inline void pop_word_new(cpu_state *cpu, word_t &N) {
         // compile-time assert failure here.
         static_assert(!CPUTraits::has_65816_ops, "pop_word_new called in 6502 mode");
     }
-    //incr_cycles();
+    //incr_cycles(cpu);
     TRACE(cpu->trace_entry.data = N;)
 }
 
@@ -2050,7 +2060,7 @@ inline void brk_cop(cpu_state *cpu, uint16_t vector) {
         }
         cpu->pc = read_word_bank0(cpu,vector);
     }
-    cpu->EFFI = cpu->I;
+    //cpu->EFFI = cpu->I;
 }
 
 /* older stack routines */
@@ -2092,7 +2102,7 @@ inline void invalid_opcode(cpu_state *cpu, opcode_t opcode) {
 inline void invalid_nop(cpu_state *cpu, int bytes, int cycles) {
     cpu->pc += (bytes-1); // we already fetched the opcode, so just count bytes excl. that.
     for (uint16_t i = 0; i < cycles-1; i++) {
-        incr_cycles();
+        incr_cycles(cpu);
     }
     /* cpu->cycles += (cycles-1); */
     TRACE(cpu->trace_entry.data = 0;)
@@ -2103,12 +2113,12 @@ public:
 int execute_next(cpu_state *cpu) override {
 
     if (cpu->clock_stopped) { // clock stopped.
-        incr_cycles();
+        incr_cycles(cpu);
         return 0;
     }
 
     if (cpu->reset_asserted) {
-        incr_cycles();
+        incr_cycles(cpu);
         return 0;
     }
     system_trace_entry_t *tb = &cpu->trace_entry;
@@ -2130,7 +2140,8 @@ int execute_next(cpu_state *cpu) override {
     }
     )
 
-    if (!cpu->EFFI && cpu->irq_asserted) { // if IRQ is not disabled, and IRQ is asserted, handle it.
+    //if (!cpu->EFFI && cpu->irq_asserted) { // if IRQ is not disabled, and IRQ is asserted, handle it.
+    if (cpu->irq_pipe & 0x02) { // look back 2 cycles for IRQ assertion
         if constexpr ((CPUTraits::has_65816_ops)) {
             if constexpr (!CPUTraits::e_mode) push_byte(cpu, cpu->pb);
             push_word(cpu, cpu->pc); // push current PC
@@ -2145,7 +2156,7 @@ int execute_next(cpu_state *cpu) override {
             if constexpr (!CPUTraits::e_mode) cpu->pc = read_word_bank0(cpu,N_IRQ_VECTOR);
             else cpu->pc = read_word_bank0(cpu,IRQ_VECTOR);
             cpu->pb = 0x00;
-            incr_cycles();
+            incr_cycles(cpu);
         } else {
             push_word(cpu, cpu->pc); // push current PC
             push_byte(cpu, (cpu->p & ~FLAG_B) | FLAG_UNUSED); // break flag = 0, Unused bit set to 1.
@@ -2154,12 +2165,12 @@ int execute_next(cpu_state *cpu) override {
                 cpu->D = 0; // turn off decimal mode on brk and interrupts
             }
             cpu->pc = read_word_bank0(cpu,IRQ_VECTOR);
-            incr_cycles();
-            //incr_cycles(); // todo might be one too many, we're at 8, refs say it's 7. push_byte takes an extra cycle now?
+            incr_cycles(cpu);
+            //incr_cycles(cpu); // todo might be one too many, we're at 8, refs say it's 7. push_byte takes an extra cycle now?
         }
         
         cpu->rdy = false;
-        cpu->EFFI = cpu->I;
+        //cpu->EFFI = cpu->I;
 
         TRACE ( tb->eaddr = cpu->pc; tb->f_irq = 1;);
         TRACE(if (cpu->trace) cpu->trace_buffer->add_entry(cpu->trace_entry);)
@@ -2167,12 +2178,12 @@ int execute_next(cpu_state *cpu) override {
     }
 
     if (cpu->rdy) { // RDY test occurs after IRQ.
-        incr_cycles();
+        incr_cycles(cpu);
         return 0;
     }
 
     // we're into the next instruction, so catch this up now.
-    cpu->EFFI = cpu->I;
+    //cpu->EFFI = cpu->I;
     
     /* if (cpu->skip_next_irq_check > 0) {
         cpu->skip_next_irq_check--;
@@ -3254,7 +3265,7 @@ int execute_next(cpu_state *cpu) override {
 
         case OP_PLP_IMP: /* PLP Implied */
             {
-                cpu->EFFI = cpu->I;
+                //cpu->EFFI = cpu->I;
                 if constexpr (CPUTraits::has_65816_ops && !CPUTraits::e_mode) {
                     stack_pull(cpu, cpu->p);
                     // TODO: perform x/m mode switch check here.
@@ -3268,7 +3279,7 @@ int execute_next(cpu_state *cpu) override {
                     cpu->p &= ~FLAG_B; // break flag is cleared.
                 }               
                 if constexpr (CPUTraits::has_65816_ops) {
-                    cpu->EFFI = cpu->I;
+                    //cpu->EFFI = cpu->I;
                 }
             }
             break;
@@ -3279,7 +3290,7 @@ int execute_next(cpu_state *cpu) override {
                 set_n_z_flags(cpu, _A(cpu));
                 /* cpu->a_lo = pop_byte(cpu);
                 set_n_z_flags(cpu, cpu->a_lo);
-                incr_cycles(); */
+                incr_cycles(cpu); */
             }
             break;
 
@@ -3289,7 +3300,7 @@ int execute_next(cpu_state *cpu) override {
                 set_n_z_flags(cpu, _X(cpu));
                 /* cpu->x_lo = pop_byte(cpu);
                 set_n_z_flags(cpu, cpu->x_lo);
-                incr_cycles(); */
+                incr_cycles(cpu); */
             } else {
                 invalid_opcode(cpu, opcode);
             }
@@ -3301,7 +3312,7 @@ int execute_next(cpu_state *cpu) override {
                 set_n_z_flags(cpu, _Y(cpu));
                 /* cpu->y_lo = pop_byte(cpu);
                 set_n_z_flags(cpu, cpu->y_lo);
-                incr_cycles(); */
+                incr_cycles(cpu); */
             } else {
                 invalid_opcode(cpu, opcode);
             }
@@ -3761,11 +3772,11 @@ int execute_next(cpu_state *cpu) override {
                     cpu->p = p | oldp;
 
                     cpu->pc = pop_word(cpu);
-                    incr_cycles();
-                    incr_cycles();
+                    incr_cycles(cpu);
+                    incr_cycles(cpu);
                     TRACE(cpu->trace_entry.operand = cpu->pc;)
                 }
-                cpu->EFFI = cpu->I; // no delay on either nmos or on 816
+                //cpu->EFFI = cpu->I; // no delay on either nmos or on 816
             }
             break;
 
@@ -3778,7 +3789,7 @@ int execute_next(cpu_state *cpu) override {
 
                 /* cpu->pc = pop_word(cpu);
                 cpu->pc++;
-                incr_cycles(); */
+                incr_cycles(cpu); */
                 TRACE(cpu->trace_entry.operand = cpu->pc;)
             }
             break;
@@ -3815,13 +3826,14 @@ int execute_next(cpu_state *cpu) override {
 
         case OP_CLI_IMP: /* CLI Implied */
             {
-                cpu->EFFI = cpu->I;
+                //cpu->EFFI = cpu->I;
                 //if (cpu->I) cpu->skip_next_irq_check = 1; // TODO: this can be cpu->skip_next_irq_check = cpu->I; test after change.
-                cpu->I = 0;
+                
                 phantom_read_ign(cpu, make_pc_long(cpu, cpu->pc));
-                if constexpr (CPUTraits::has_65816_ops) {
+                cpu->I = 0;
+                /* if constexpr (CPUTraits::has_65816_ops) {
                     cpu->EFFI = cpu->I;
-                }
+                } */
             }
             break;
 
@@ -3841,12 +3853,12 @@ int execute_next(cpu_state *cpu) override {
 
         case OP_SEI_IMP: /* SEI Implied */
             {
-                cpu->EFFI = cpu->I;
-                cpu->I = 1;
+                //FI = cpu->I;
                 phantom_read_ign(cpu, make_pc_long(cpu, cpu->pc));
-                if constexpr (CPUTraits::has_65816_ops) {
+                cpu->I = 1;
+                /* if constexpr (CPUTraits::has_65816_ops) {
                     cpu->EFFI = cpu->I;
-                }
+                } */
             }
             break;
 
@@ -3917,7 +3929,7 @@ int execute_next(cpu_state *cpu) override {
                 eaddr |= fetch_pc(cpu) << 8; // cycle 3
                 push_byte_new(cpu, cpu->pb); // cycle 4
                 phantom_read(cpu, cpu->sp);
-                //incr_cycles(); // TODO: replace with phantom_read (0,S) // cycle 5
+                //incr_cycles(cpu); // TODO: replace with phantom_read (0,S) // cycle 5
                 uint16_t o_pc = cpu->pc;
                 cpu->pb = fetch_pc(cpu); // cycle 6
                 push_word_new(cpu, o_pc); // cycle 7 and 8
@@ -4539,8 +4551,8 @@ int execute_next(cpu_state *cpu) override {
         case OP_INOP_CB: /* INOP CB */ /* OP_WAI_IMP */
             if constexpr (CPUTraits::has_65816_ops) {
                 cpu->rdy = true;
-                incr_cycles(); // ticks 2 cycles past the opcode.
-                incr_cycles();
+                incr_cycles(cpu); // ticks 2 cycles past the opcode.
+                incr_cycles(cpu);
             } else if constexpr (CPUTraits::has_65c02_ops) {
                 invalid_nop(cpu, 1, 1);
             } else invalid_opcode(cpu, opcode);
@@ -4550,8 +4562,8 @@ int execute_next(cpu_state *cpu) override {
             if constexpr (CPUTraits::has_65816_ops) {
                 //assert(false && "STP not implemented");
                 cpu->clock_stopped = true;
-                incr_cycles(); // ticks 2 cycles past the opcode.
-                incr_cycles();
+                incr_cycles(cpu); // ticks 2 cycles past the opcode.
+                incr_cycles(cpu);
             } else if constexpr (CPUTraits::has_65c02_ops) {
                 invalid_nop(cpu, 1, 1);
             } else invalid_opcode(cpu, opcode);

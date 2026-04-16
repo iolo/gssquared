@@ -10,7 +10,6 @@ private:
     const char *name = nullptr;
 protected:
     NClock *clock = nullptr;
-    inline void incr_cycles() { this->clock->incr_cycles(); }
 
 public:
     BaseCPU(NClock *clock) { this->clock = clock; }

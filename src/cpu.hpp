@@ -27,6 +27,8 @@
 #include "cpus/processor_type.hpp"
 #include "cpus/cpu_traits.hpp"
 
+class MMU;
+
 #define MAX_CPUS 1
 
 // Emulation mode / 6502 Vectors
@@ -43,6 +45,8 @@
 #define N_ABORTB_VECTOR 0xFFE8
 #define N_BRK_VECTOR    0xFFE6
 #define N_COP_VECTOR    0xFFE4
+
+class BaseCPU;
 
 struct cpu_state {
     union {
@@ -180,11 +184,16 @@ struct cpu_state {
 
     uint8_t halt = 0; /* == 1 is HLT instruction halt; == 2 is user halt */
 
-    uint64_t irq_asserted = 0; /** bits 0-7 correspond to various IRQ sources */
+    bool irq_asserted = 0; /** bits 0-7 correspond to various IRQ sources */
+    uint8_t irq_pipe = 0;
     uint64_t reset_asserted = 0; /** bits 0-10 correspond to various RESET sources. */
+    
 
-    bool ICHANGE = false; /* if set, the I flag has changed */
-    bool EFFI = 0; /* if set, the E flag has changed */
+    //uint64_t irq_sample1 = 0; /* IRQ level at the start of the last cycle */
+    //uint64_t irq_sample0 = 0; /* IRQ level at the start of the current cycle */
+
+    //bool ICHANGE = false; /* if set, the I flag has changed */
+    //bool EFFI = 0; /* if set, the E flag has changed */
     bool rdy = false; /* if set, the RDY signal is asserted */
 
     MMU *mmu = nullptr; // cpu only needs to know about base interface with read() and write().

@@ -396,6 +396,8 @@ target_link_libraries(GSSquared
 
 add_subdirectory(apps/adbtest)
 
+add_subdirectory(apps/mbtest)
+
 add_subdirectory(apps/nibblizer)
 
 add_subdirectory(apps/denibblizer)
