@@ -155,3 +155,22 @@ This passes both GS-IRQ test and the MB-IRQ test.
 This fails both GS-IRQ test and MB-IRQ test.
 However, this appears to be what perfect6502 is doing.
 
+
+
+# Test Log
+
+## GStest
+
+real IIgs:
+    system speed set to 1MHz
+    get: 0001
+
+## mbtest
+
+IIe Enh/Mockingboard/65C02
+
+IIe/Mockingboard/N6502
+
+Xot emulator: 0001-0100
+
+perfect6502: the SEI is executed, IRQ after that
