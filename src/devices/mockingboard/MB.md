@@ -112,3 +112,46 @@ The question remains: has his test program been run on actual hardware and has t
 Correctly identifies the mockingboard with two 6522 chips.
 fails Test 11:04:00, Expected F1 Actual F0
 this is a counter that's off by one.
+
+Tom C isn't confident he knows the correct answers either! We need to do some science.
+
+# New Tests
+
+## Behavior of CLI/SEI
+
+### IIe + Mockingboard
+
+on a //e with Mockingboard, we can use the test program I was sent.
+
+1. SEI
+1. set up mockingboard to generate an interrupt
+1. CLI and immediate SEI.
+
+If the SEI executes, the IRQ will fire once. If the SEI does not execute, the IRQ will fire until we turn it off in the interrupt handler.
+
+### IIgs
+
+1. Wait until VBL clears
+1. SEI
+1. set up most direct IRQ vector possible.
+1. enable VBL interrupt
+1. spin until VBL sets
+1. the VBL interrupt should now be active
+1. CLI / SEI
+
+Same test results as above.
+
+## Behavior of RTI
+
+Variations of the above, where we want to see if a) at least one instruction executes after an RTI before going back into IRQ handler, or b) the IRQ immediately fires after the RTI meaning unless you clear the source you will loop forever.
+
+
+* Variation T1: only IRQ is sampled at penultimate cycle.
+
+This passes both GS-IRQ test and the MB-IRQ test.
+
+* Variation T2: both IRQ and I are sampled at penultimate cycle.
+
+This fails both GS-IRQ test and MB-IRQ test.
+However, this appears to be what perfect6502 is doing.
+
