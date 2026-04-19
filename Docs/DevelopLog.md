@@ -11544,3 +11544,17 @@ This would all be WAY easier to reason about if we can call the MB every cycle. 
 Something like this might be required to fix the ensoniq handling also.
 
 Let's create a new branch for this.
+
+## Apr 17, 2026
+
+So, NO - the 6522 does NOT interrupt every go-round unless you have set the continuous interrupt mode. in one-shot mode the interrupts are not resumed.
+
+HOLY COW I FOUND THE PROBLEM WITH CHIPTUNES!
+
+Root cause recap (for your DevelopLog)
+The two AY-8910 chips run with independent tone-counter phases, just like real hardware. When chiptune software drives both chips with identical content, channels can end up close to 180° out of phase. That's fine for true stereo speakers (each ear gets one chip), but a single speaker that sums L+R acoustically will cancel those channels to near-silence. Fix: introduce a ~363 µs delay on R (far below the Haas echo threshold, so inaudible on stereo) which prevents structural L+R cancellation at any frequency in the audio band.
+
+Good catch on proposing the mono test — that A/B result was the key evidence that distinguished "emulator bug" from "downmix physics" and kept us from chasing a phantom counter-sync fix.
+
+How did I never think to test this with stereo speakers before? I just assumed the problem was in my code. Hah! That'll lear me!
+

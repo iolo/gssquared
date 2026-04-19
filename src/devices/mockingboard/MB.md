@@ -184,3 +184,57 @@ IIe/Mockingboard/N6502
 Xot emulator: 0001-0100
 
 perfect6502: the SEI is executed, IRQ after that
+
+apple2ts: interrupt never turns off, Patrick Montelo shows screencap up to 177B and still going.
+
+real apple2e platinum: single 0001.
+
+ApplEm (emulator): 0001 (Mike Daley)
+
+
+## chiptune_dya
+(tested on dual-mockingboard)
+This starts playing but then fails spewing tons of 
+```
+(MB_6522 2 0x00) interrupt set 0 [ T1 E1/F0 ] [ T2 E0/F0 ]:
+(MB_6522 2 0x00) T1 callback: 10000701
+(MB_6522 2 0x00) interrupt set 1 [ T1 E1/F1 ] [ T2 E0/F0 ]:
+(MB_6522 2 0x00) scheduled 10000701 at 242006557 for timer1
+(MB_6522 2 0x00) interrupt set 0 [ T1 E1/F0 ] [ T2 E0/F0 ]:
+(MB_6522 2 0x00) interrupt set 0 [ T1 E1/F0 ] [ T2 E0/F0 ]:
+(MB_6522 2 0x00) interrupt set 0 [ T1 E1/F0 ] [ T2 E0/F0 ]:
+(MB_6522 2 0x00) interrupt set 0 [ T1 E1/F0 ] [ T2 E0/F0 ]:
+(MB_6522 2 0x00) interrupt set 0 [ T1 E1/F0 ] [ T2 E0/F0 ]:
+```
+not sure why it's doing this. I should print cycle counter at start of these lines.
+(seems to be ok on single mockingboard)
+ah, of course it's still working on dual-mb. 
+I had run something before it, so maybe something was left uninitialized.
+
+## mb-audit
+
+Right off the bat there is a problem where the IFR is coming back E0 instead of 60.
+
+```
+DetectMegaAudioCard
+	ldy		#SY6522_TIMER1H_COUNTER
+	sta		(MBBase),y					; (and clears IFR.T1)
+
+										;   T1C
+										; $0006
+	lda		#2					; 2cy	; $0004
+	ldx		#1					; 2cy	; $0002
+	cli							; 2cy	; $0000
+	sta		zpTmp2				; 3cy	; $ffff
+										; $0002	: real 6522 - IRQ occurs on 2nd cycle... so IRQ occurs after this 'sta zp'
+										; $0001	: FPGA 6522 - IRQ occurs on 3rd cycle... so IRQ deferred until after next 'stx zp'
+	stx		zpTmp2
+```
+
+So what's happening here is we are triggering interrupt after the STX, which makes mb-audit think this is a MegaAudio ("FPGA") card. This is what I was worried about. The IRQ should actually be triggered INSIDE the instruction, not after the instruction in the main loop like we do now. Before I hacked this by tweaking the MB counters, but that is not the correct approach.
+
+Before I proceed let's re-verify the 6502/816 IRQ code is correct. It is NOT. I am still doing the whack 0001-0100 patch. I really need the real IIe HW test results back. OK, so I get the 0001 result, however, I am now failing IRQTEST A@EE and H@EE. Ah!
+Right, it was because in 65816 RTI I was not setting the new P register value until after I had popped the return address, which was wrong. P needed to be set immediately after pulling from the stack so that the new value of I could be sampled.
+That worked.
+
+OK, so what we need is to put a EventTimer inside NClock, purely for use of interrupt related stuff like this if we determine it's needed. We'll do it based only on vid_cycles.
