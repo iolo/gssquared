@@ -202,7 +202,7 @@ public:
     
     void generate_frame() {
         static int frames = 0;
-    
+
         samples_accumulated += samples_per_frame_remainder;
         uint32_t samples_this_frame = samples_per_frame_int;
         if (samples_accumulated >= 1.0f) {
@@ -240,6 +240,14 @@ public:
         n6522[0]->reset();
         n6522[1]->reset();
         ay8910s->reset();
+    }
+
+    DebugFormatter *debug() {
+        DebugFormatter *df = new DebugFormatter();
+        n6522[0]->debug(df);
+        n6522[1]->debug(df);
+        // TODO: add AY-8910s debug
+        return df;
     }
 };
 
@@ -283,8 +291,11 @@ void init_slot_mockingboard(computer_t *computer, SlotType_t slot) {
 
     // this can move to the class
     // register a frame processor for the mockingboard.
-    computer->device_frame_dispatcher->registerHandler([mb_d]() {
-        mb_d->mockingboard->generate_frame();
+    computer->device_frame_dispatcher->registerHandler([mb_d,computer]() {
+        // if in single step, return.
+        if (computer->execution_mode == EXEC_NORMAL) {
+            mb_d->mockingboard->generate_frame();
+        }
         return true;
     });
 
@@ -299,6 +310,7 @@ void init_slot_mockingboard(computer_t *computer, SlotType_t slot) {
         "mockingboard",
         DH_MOCKINGBOARD, // unique ID for this, need to have in a header.
         [mb_d]() -> DebugFormatter * {
+            return mb_d->mockingboard->debug();
             //return debug_registers_6522(mb_d);
             return nullptr;
         }
