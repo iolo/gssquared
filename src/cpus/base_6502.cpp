@@ -65,8 +65,8 @@ public:
 
     inline void incr_cycles(cpu_state *cpu) { 
         // this has the loss down to 13emhz.
-        //cpu->irq_pipe = (cpu->irq_pipe << 1) | ((!cpu->I & cpu->irq_asserted)); // T2: Test IRQ and I penultimate
-        cpu->irq_pipe = (cpu->irq_pipe << 1) | (cpu->irq_asserted); // T1: only test IRQ penultimate
+        cpu->irq_pipe = (cpu->irq_pipe << 1) | ((!cpu->I & cpu->irq_asserted)); // T2: Test IRQ and I penultimate
+        //cpu->irq_pipe = (cpu->irq_pipe << 1) | (cpu->irq_asserted); // T1: only test IRQ penultimate
         // These two lines cost us 20 eMHz!
         /* cpu->irq_sample1 = cpu->irq_sample0;
         cpu->irq_sample0 = (!cpu->I) ? cpu->irq_asserted : 0; */
@@ -2142,8 +2142,8 @@ int execute_next(cpu_state *cpu) override {
     )
 
     //if (!cpu->EFFI && cpu->irq_asserted) { // if IRQ is not disabled, and IRQ is asserted, handle it.
-    if (!cpu->I && (cpu->irq_pipe & 0x02)) { // T1: look back 2 cycles for IRQ assertion
-    //if (cpu->irq_pipe & 0x02) { // T2: look back 2 cycles for IRQ assertion AND I
+    //if (!cpu->I && (cpu->irq_pipe & 0x02)) { // T1: look back 2 cycles for IRQ assertion
+    if (cpu->irq_pipe & 0x02) { // T2: look back 2 cycles for IRQ assertion AND I
         if constexpr ((CPUTraits::has_65816_ops)) {
             if constexpr (!CPUTraits::e_mode) push_byte(cpu, cpu->pb);
             push_word(cpu, cpu->pc); // push current PC
@@ -3757,28 +3757,29 @@ int execute_next(cpu_state *cpu) override {
                     phantom_read_ign(cpu, make_pc_long(cpu, cpu->pc));
                     phantom_read_ign(cpu, make_pc_long(cpu, cpu->pc));
                     byte_t p = pop_byte(cpu);
-                    cpu->pc = pop_word(cpu);
                     if constexpr (!CPUTraits::e_mode) {
                         cpu->p = p;
-                        cpu->pb = pop_byte(cpu);
                     } else {
                         p = p & ~(FLAG_B | FLAG_UNUSED);
                         cpu->p = p | oldp;
                     }
-                    
+                    cpu->pc = pop_word(cpu);
+                    if constexpr (!CPUTraits::e_mode) cpu->pb = pop_byte(cpu);
                 } else {
                     // pop status register "ignore B | unused" which I think means don't change them.
                     // can't find reference for order of RTI bus operations on 6502.
                     byte_t oldp = cpu->p & (FLAG_B | FLAG_UNUSED);
-                    byte_t p = pop_byte_nocycle(cpu) & ~(FLAG_B | FLAG_UNUSED);
+                    
+                    phantom_read_ign(cpu, make_pc_long(cpu, cpu->pc));
+                    phantom_read_ign(cpu, make_pc_long(cpu, cpu->pc));
+
+                    byte_t p = pop_byte(cpu) & ~(FLAG_B | FLAG_UNUSED);
                     cpu->p = p | oldp;
 
                     cpu->pc = pop_word(cpu);
-                    incr_cycles(cpu);
-                    incr_cycles(cpu);
+
                     TRACE(cpu->trace_entry.operand = cpu->pc;)
                 }
-                //cpu->EFFI = cpu->I; // no delay on either nmos or on 816
             }
             break;
 
