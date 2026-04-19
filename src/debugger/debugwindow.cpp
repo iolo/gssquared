@@ -349,24 +349,24 @@ void debug_window_t::render_pane_trace() {
         if ((cpu->_M == 1) && (cpu->_X == 1)) {
             snprintf(buffer, sizeof(buffer), "%02X/%04X %02X %04X   %02X   %02X   %02X %04X   %d %d %d  %d %d %d %d %d  %d  %d", 
                 cpu->pb, cpu->pc, cpu->db, cpu->d, cpu->a & 0xFF, cpu->x & 0xFF, cpu->y & 0xFF, cpu->sp, 
-                cpu->N, cpu->V, cpu->_M, cpu->_X, cpu->D, cpu->I, cpu->Z, cpu->C, cpu->E, cpu->irq_asserted!=0);
+                cpu->N, cpu->V, cpu->_M, cpu->_X, cpu->D, cpu->I, cpu->Z, cpu->C, cpu->E, cpu->irq_asserted);
         } else if ((cpu->_M == 1) && (cpu->_X == 0)) {
             snprintf(buffer, sizeof(buffer), "%02X/%04X %02X %04X   %02X %04X %04X %04X   %d %d %d  %d %d %d %d %d  %d  %d", 
                 cpu->pb, cpu->pc, cpu->db, cpu->d, cpu->a & 0xFF, cpu->x, cpu->y, cpu->sp, 
-                cpu->N, cpu->V, cpu->_M, cpu->_X, cpu->D, cpu->I, cpu->Z, cpu->C, cpu->E, cpu->irq_asserted!=0);
+                cpu->N, cpu->V, cpu->_M, cpu->_X, cpu->D, cpu->I, cpu->Z, cpu->C, cpu->E, cpu->irq_asserted);
         } else if ((cpu->_M == 0) && (cpu->_X == 1)) {
             snprintf(buffer, sizeof(buffer), "%02X/%04X %02X %04X %04X   %02X   %02X %04X   %d %d %d  %d %d %d %d %d  %d  %d", 
                 cpu->pb, cpu->pc, cpu->db, cpu->d, cpu->a, cpu->x & 0xFF, cpu->y & 0xFF, cpu->sp, 
-                cpu->N, cpu->V, cpu->_M, cpu->_X, cpu->D, cpu->I, cpu->Z, cpu->C, cpu->E, cpu->irq_asserted!=0);
+                cpu->N, cpu->V, cpu->_M, cpu->_X, cpu->D, cpu->I, cpu->Z, cpu->C, cpu->E, cpu->irq_asserted);
         } else {
             snprintf(buffer, sizeof(buffer), "%02X/%04X %02X %04X %04X %04X %04X %04X   %d %d %d  %d %d %d %d %d  %d  %d", 
                 cpu->pb, cpu->pc, cpu->db, cpu->d, cpu->a, cpu->x, cpu->y, cpu->sp, 
-                cpu->N, cpu->V, cpu->_M, cpu->_X, cpu->D, cpu->I, cpu->Z, cpu->C, cpu->E, cpu->irq_asserted!=0);
+                cpu->N, cpu->V, cpu->_M, cpu->_X, cpu->D, cpu->I, cpu->Z, cpu->C, cpu->E, cpu->irq_asserted);
         }
     } else {
         draw_text(DEBUG_PANEL_TRACE, x, 4, "PC     A  X  Y  SP     N V - B D I Z C    e  IRQ");
         snprintf(buffer, sizeof(buffer), "%04X   %02X %02X %02X %04X   %d %d - %d %d %d %d %d  %d  %d", cpu->pc, cpu->a, cpu->x, cpu->y, cpu->sp, 
-        cpu->N, cpu->V, cpu->B, cpu->D, cpu->I, cpu->Z, cpu->C, cpu->E, cpu->irq_asserted!=0);
+        cpu->N, cpu->V, cpu->B, cpu->D, cpu->I, cpu->Z, cpu->C, cpu->E, cpu->irq_asserted);
     }
     //draw_text(DEBUG_PANEL_TRACE, x, 4, "PC     A  X  Y  SP     N V - D B I Z C  e  IRQ");
 
