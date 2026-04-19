@@ -21,6 +21,7 @@
 #include "ui/MainAtlas.hpp" 
 #include "devices/displaypp/VideoScannerII.hpp"
 #include "PlatformIDs.hpp"
+#include "util/EventTimer.hpp"
 
 typedef enum {
     CLOCK_FREE_RUN = 0,
@@ -115,6 +116,7 @@ protected:
     uint64_t frame_count = 0;
 
     VideoScannerII *video_scanner = nullptr;
+    EventTimer event_vid;
 
 public:
     
@@ -132,7 +134,12 @@ public:
         frame_end_c14M = current.c14M_per_frame;
         frame_count = 0;
     }
-
+    inline void schedule_vid_event(uint64_t trigger_at, void (*callback)(uint64_t, void*), uint64_t instanceID, void* userData = nullptr) {
+        event_vid.scheduleEvent(trigger_at, callback, instanceID, userData);
+    }
+    inline void cancel_vid_event(uint64_t instanceID) {
+        event_vid.cancelEvents(instanceID);
+    }
     inline uint64_t get_cycles() { return cycles; } // this should make accessing cycles fast still.
     inline uint64_t get_c14m() { return c_14M; }
     inline uint64_t get_vid_cycles() { return video_cycles; }
@@ -242,6 +249,7 @@ public:
                 video_cycle_14M_count -= 14;
                 video_scanner->video_cycle();
                 video_cycles++;
+                event_vid.processEvents(video_cycles);
             }
             if (scanline_14M_count >= 910) {  // end of scanline
                 c_14M += current.extra_per_scanline;
