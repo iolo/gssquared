@@ -69,7 +69,17 @@ cpu_state->core is pretty much unused; deprecate
 
 # Comparing Production 6522 to Test Harness 6522
 
+W6522 - cycle-at-a-time
+N6522 - callback-based
+
 Next step is to harness the existing 6522 as-is to see how it compares to the cycle-by-cycle one.
+
+I did that - I took the code and rationalized it as a class with the same interface as W6522, it's called N6522.
+
+It was a full-throated hairy mess! Lots of things were wrong - counter values on reset were wrong, interrupts triggered at wrong time, no accounting for rollover to FFFF.
+
+I got everything fixed up, though, and it seems to now be producing exactly the same results as W6522. And the code was drastically cleaned up and simplified, it even starts to make sense. LOLZ.
+
 
 
 # Testing Approach

@@ -19,8 +19,6 @@
 
 #include "debug.hpp"
 #include "util/DebugFormatter.hpp"
-#include "util/DebugHandlerIDs.hpp"
-
 
 #define MB_6522_DDRA 0x03
 #define MB_6522_DDRB 0x02
