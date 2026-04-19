@@ -283,41 +283,8 @@ static const float normalized_levels[16] = {
                     chip.tone_channels[2].period = ((chip.registers[C_Tone_High] & 0x0F) << 8) | chip.registers[C_Tone_Low];
                     setChannelAlpha(event.chip_index, 2);
                     break;
-#if 0
-                case A_Tone_Low: // Tone period low bits for channel A
-                case B_Tone_Low: // Tone period low bits for channel B
-                case C_Tone_Low: // Tone period low bits for channel C
-                    {
-                        int channel = event.register_num / 2;
-                        int high_bits = chip.registers[event.register_num + 1] & 0x0F;
-                        // The AY-3-8910 frequency is calculated as: f = chip_frequency / (2 * period)
-                        // So for a given frequency f, period = chip_frequency / (2 * f)
-                        // For example, for 250Hz: period = 62500 / (2 * 250) = 125
-                        chip.tone_channels[channel].period = 
-                            (high_bits << 8) | event.value;
-                        /* if (chip.tone_channels[channel].period == 0) {
-                            chip.tone_channels[channel].period = 1; // Avoid division by zero
-                        } */
-                        setChannelAlpha(event.chip_index, channel);
-                    }
-                    break;
-                    
-                case A_Tone_High: // Tone period high bits for channel A
-                case B_Tone_High: // Tone period high bits for channel B
-                case C_Tone_High: // Tone period high bits for channel C
-                    {
-                        int channel = (event.register_num - 1) / 2;
-                        int high_bits = event.value & 0x0F;
-                        chip.tone_channels[channel].period = 
-                            (high_bits << 8) | chip.registers[event.register_num - 1];
-                        /* if (chip.tone_channels[channel].period == 0) {
-                            chip.tone_channels[channel].period = 1; // Avoid division by zero
-                        } */
-                        setChannelAlpha(event.chip_index, channel);
-                    }
-                    break;
-#endif
-                case Noise_Period: // Noise period
+
+                    case Noise_Period: // Noise period
                     chip.noise_period = event.value & 0x1F;
                     if (chip.noise_period == 0) {
                         chip.noise_period = 1; // Avoid division by zero
