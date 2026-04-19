@@ -3,7 +3,8 @@
 #include <vector>
 //#include "gs2.hpp"
 //#include "cpu.hpp"
-#include "NClock.hpp"
+//#include "NClock.hpp"
+class NClockII;  // forward declare instead of include
 
 class EventTimer {
 public:
