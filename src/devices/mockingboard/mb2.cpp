@@ -172,7 +172,6 @@ public:
     void debug_registers();
 
     void write(uint32_t addr, uint8_t data) {   // this is address & 0xFF
-        uint8_t slot = (addr & 0x0F00) >> 8;
         uint8_t reg = addr & 0x0F;
         uint8_t chip = (addr & 0x80) ? 0 : 1;
     
@@ -193,7 +192,6 @@ public:
     }
     
     uint8_t read(uint32_t addr) {               // this is address & 0xFF
-        uint8_t slot = (addr & 0x0F00) >> 8;
         uint8_t reg = addr & 0x0F;
         uint8_t chip = (addr & 0x80) ? 0 : 1;
     
