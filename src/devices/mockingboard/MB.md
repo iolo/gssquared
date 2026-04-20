@@ -238,3 +238,38 @@ Right, it was because in 65816 RTI I was not setting the new P register value un
 That worked.
 
 OK, so what we need is to put a EventTimer inside NClock, purely for use of interrupt related stuff like this if we determine it's needed. We'll do it based only on vid_cycles.
+
+
+6522 Theory of operation
+
+one-shot mode {
+    in one shot mode, the counter is set.
+	it decrements to 0.
+	the transition from 0001 to 0000 is what triggers the interrupt.
+	after this the counter continues decrementing (FFFF, FFFE, etc.)
+    If the counter is set to 0, it will count 65536 cycles because the important transition is 0001 -> 0000.
+	(i.e., if after decrement the counter is 0..)
+    If you set counter to 0005, you will get this sequence:
+	0005, 0004, 0003, 0002, 0001, 0000, FFFF, FFFE, FFFD ...
+}
+
+continuous mode {
+    applies only to T1
+	after decrementing to 0, the counter is reloaded from the latch.
+    If the counter is set to 0, it will count 65536 cycles because the important transition is 0001 -> 0000.
+    So if you set continuous mode counter to 0005, you will get this sequence:
+	0005, 0004, 0003, 0002, 0001, 0000, 0005, 0004, ... 
+}
+
+each counter has a "interrupt armed" flag - no interrupt will ever be generated until after this flag is set, and it's set by writing the counter; OR only in continuous mode, when the counter is reloaded from latch.
+
+The counters are ALWAYS counting, every single cycle. There is no state in which the counters are quiescent or static.
+
+
+
+T1 does 'reload' on reaching zero.
+but if the latch is 0, after reload, it decrements to FFFF.
+this behavior is different than T2, which is always one-shot mode and just keeps counting
+this is different from T1 which does the reload, and would be consistent with the WDC data sheet.
+"reaches 0" means "after a decrement, the counter is 0", or, the transition from 1 to 0.
+So if you program the latch with 0, it gets loaded at that point with itself, and this implies you'll get an interrupt after 65536 cycles of programming a 0.
