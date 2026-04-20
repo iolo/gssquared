@@ -34,6 +34,12 @@ public:
         snprintf(buffer, buffer_size, format, args...);
         lines.push_back(std::string(buffer));
     }
+
+    void print() {
+        for (const auto& line : lines) {
+            printf("%s\n", line.c_str());
+        }
+    }
     
     // Add a plain string line
     void addLine(const std::string& line) {

@@ -22,6 +22,7 @@
  #include "computer.hpp"
  #include "NClock.hpp"
  #include "devices/diskii/diskii_fmt.hpp"
+#include "util/DebugFormatter.hpp"
  #include "util/media.hpp"
  #include "util/SoundEffectKeys.hpp"
  #include "devices/diskii/Floppy525.hpp"
@@ -245,6 +246,15 @@ class DiskII_Controller : public StorageDevice {
     }
     drive_status_t status(storage_key_t key) {
         return drives[key.drive].status();
+    }
+
+    DebugFormatter *debug() {
+        DebugFormatter *f = new DebugFormatter();
+        f->addLine("Drive Select: %d", drive_select);
+        f->addLine("Motor: %d", motor);
+        f->addLine("Mark Cycles Turnoff: %llu", mark_cycles_turnoff);
+        drives[drive_select].debug(f);
+        return f;
     }
 };
 

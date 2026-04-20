@@ -171,7 +171,7 @@ In DOS at $B800 lives the "prenibble routine" . I could perhaps steal that. hehe
 #include "util/SoundEffect.hpp"
 #include "util/printf_helper.hpp"
 #include "util/ResetController.hpp"
- 
+#include "util/DebugHandlerIDs.hpp"
  
 #define DEBUG_PH(slot, drive, phase, onoff) fprintf(stdout, "PH: slot %d, drive %d, phase %d, onoff %d \n", slot, drive, phase, onoff)
 #define DEBUG_MOT(slot, drive, onoff) fprintf(stdout, "MOT: slot %d, drive %d, motor %d \n", slot, drive, onoff)
@@ -287,6 +287,13 @@ void init_slot_ndiskII(computer_t *computer, SlotType_t slot) {
             }
             return true;
         });
+    computer->register_debug_display_handler(
+        "diskii",
+        DH_DISKII,
+        [diskII_d]() -> DebugFormatter * {
+            return diskII_d->dc->debug();
+        }
+    );
 
 }
  

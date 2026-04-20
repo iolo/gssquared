@@ -78,4 +78,15 @@ class Floppy525: public FloppyDrive {
 
     virtual uint8_t read_cmd(uint16_t address) override;
     virtual void write_cmd(uint16_t address, uint8_t data) override;
+
+    void debug(DebugFormatter *f) {
+        f->addLine("Track: %d", track);
+        f->addLine("Head Position: %d", head_position);
+        f->addLine("Bit Position: %d", bit_position);
+        f->addLine("Read Shift Register: %02X", read_shift_register);
+        f->addLine("Write Shift Register: %02X", write_shift_register);
+        f->addLine("Q6: %d", Q6);
+        f->addLine("Q7: %d", Q7);
+        f->addLine("Modified: %d", modified);
+    }
 };
