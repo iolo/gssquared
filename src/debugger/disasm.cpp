@@ -37,6 +37,9 @@ uint8_t Disassembler::read_mem(uint32_t address) {
     if (address >= 0xC000 && address < 0xC0FF) {
         return 0xEE; // do not actually trigger I/O when we're trying to disassemble.
     }
+    if ((address & 0xFF00) == 0xC400) { // TODO: this is a hack to prevent disassembler from changing mockingboard state. need better method.
+        return 0xDD;
+    }
     return mmu->read(address);
 }
 
