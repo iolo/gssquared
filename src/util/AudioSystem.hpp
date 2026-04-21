@@ -4,6 +4,8 @@
 
 #include <SDL3/SDL.h>
 
+#include "DebugFormatter.hpp"
+
 /* The goal here */
 
 struct audio_stream_t {
@@ -21,7 +23,8 @@ private:
     SDL_AudioDeviceID device_id;
     uint16_t volume_setting = 6;
     float gain = 1.0f;
-    
+    void printSpec(SDL_AudioSpec spec);
+
 public:
     AudioSystem();
     ~AudioSystem();
@@ -45,6 +48,7 @@ public:
     void set_volume(uint16_t volume); // Apply volume to all streams marked "apply_volume=true"
     inline float get_gain() { return gain; }
     inline uint16_t get_volume() { return volume_setting; }
+    void getCurrentAudioFormat(DebugFormatter *df);
 
     /*     void set_mute(bool mute); // TODO: leave here for ideas.
     bool get_mute();

@@ -315,9 +315,12 @@ void init_slot_mockingboard(computer_t *computer, SlotType_t slot) {
         "mockingboard",
         DH_MOCKINGBOARD, // unique ID for this, need to have in a header.
         [mb_d]() -> DebugFormatter * {
-            return mb_d->mockingboard->debug();
+            DebugFormatter *df = mb_d->mockingboard->debug();
+            
+            mb_d->audio_system->getCurrentAudioFormat(df);            
+            return df;
             //return debug_registers_6522(mb_d);
-            return nullptr;
+            //return nullptr;
         }
     );
 }

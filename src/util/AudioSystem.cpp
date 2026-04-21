@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <SDL3/SDL.h>
 
+#include "DebugFormatter.hpp"
 #include "AudioSystem.hpp"
 
 AudioSystem::AudioSystem() {
@@ -14,7 +15,6 @@ AudioSystem::AudioSystem() {
         SDL_AudioSpec spec;
         SDL_GetAudioDeviceFormat(devices[i], &spec, NULL);
         printf("AudioDevice %d: %s %d\n", i, SDL_GetAudioDeviceName(devices[i]), spec.freq);
-
     }
     SDL_free(devices);
 
@@ -26,6 +26,16 @@ AudioSystem::AudioSystem() {
 
     gain = 1.0f * 6.0f / 16.0f;
     
+}
+
+void AudioSystem::printSpec(SDL_AudioSpec spec) {
+    printf("AudioSpec: %d Hz, %d channels, %d format\n", spec.freq, spec.channels, spec.format);
+}
+
+void AudioSystem::getCurrentAudioFormat(DebugFormatter *df) {
+    SDL_AudioSpec spec;
+    SDL_GetAudioDeviceFormat(device_id, &spec, NULL);
+    df->addLine("Audio format: %d Hz, %d channels, %d format", spec.freq, spec.channels, spec.format);
 }
 
 AudioSystem::~AudioSystem() {
