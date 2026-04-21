@@ -20,7 +20,7 @@
 #include "gs2.hpp"
 #include "cpu.hpp"
 #include "computer.hpp"
-#include "N6522.hpp"
+#include "W6522.hpp"
 #include "AY8910-2.hpp"
 #include "util/InterruptController.hpp"
 #include "util/DebugFormatter.hpp"

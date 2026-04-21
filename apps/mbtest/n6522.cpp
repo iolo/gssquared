@@ -45,15 +45,17 @@ reg_record_t recs1[] = {
 
     // should have a concept here to READ the register.
     {READ, 100, MB_6522_T2L_L, 0x00},
+    {END, 0, 0, 0},
 };
 
 // Test:
-// Continuous mode, T1 Latch set to 0, should cycle 65536 times before IRQ.
+// Continuous mode, T1 Latch set to 0, should cycle 1.5 times before IRQ.
 reg_record_t recs2[] = {
     {WRITE, 1, MB_6522_IER, 0b11000000}, // enable T1 interrupt (7:1 = "set", 6:1 = "set")
     {WRITE, 2, MB_6522_ACR, 0x40},
     {WRITE,5, MB_6522_T1L_L, 0x00},
     {WRITE, 8, MB_6522_T1C_H, 0x00},
+    {END, 0, 0, 0},
 };
 
 // Test:
@@ -63,16 +65,28 @@ reg_record_t recs3[] = {
     {WRITE, 2, MB_6522_ACR, 0x40},
     {WRITE,5, MB_6522_T1L_L, 0x05},
     {WRITE, 8, MB_6522_T1C_H, 0x00},
+    {END, 0, 0, 0},
+};
+
+// Test:
+// Continuous mode, T1 Latch set to FFFF
+reg_record_t recs4[] = {    
+    {WRITE, 1, MB_6522_IER, 0b11000000}, // enable T1 interrupt (7:1 = "set", 6:1 = "set")
+    {WRITE, 2, MB_6522_ACR, 0x40},
+    {WRITE,5, MB_6522_T1L_L, 0xFF},
+    {WRITE, 8, MB_6522_T1C_H, 0xFF},
+    {END, 65550, 0, 0},
 };
 
 // Test:
 // Continuous mode, T1 Latch set to 5, then go back to one-shot mode.
-reg_record_t recs4[] = {    
+reg_record_t recs5[] = {    
     {WRITE, 1, MB_6522_IER, 0b11000000}, // enable T1 interrupt (7:1 = "set", 6:1 = "set")
     {WRITE, 2, MB_6522_ACR, 0x40},
     {WRITE,5, MB_6522_T1L_L, 0x05},
     {WRITE, 8, MB_6522_T1C_H, 0x00},
     {WRITE, 18, MB_6522_ACR, 0x00}, // turn off continuous mode
+    {END, 0, 0, 0},
 };
 
 reg_record_t *recs[] = {
@@ -80,6 +94,7 @@ reg_record_t *recs[] = {
     recs2,
     recs3,
     recs4,
+    recs5,
 };
 
 class NClockIIMB : public NClock {

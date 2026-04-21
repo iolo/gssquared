@@ -273,3 +273,41 @@ this behavior is different than T2, which is always one-shot mode and just keeps
 this is different from T1 which does the reload, and would be consistent with the WDC data sheet.
 "reaches 0" means "after a decrement, the counter is 0", or, the transition from 1 to 0.
 So if you program the latch with 0, it gets loaded at that point with itself, and this implies you'll get an interrupt after 65536 cycles of programming a 0.
+
+update: Ian came up with an Apple doc about a 6523 clone core they made. It differs from the above.
+
+Via Cell Theory of Operation
+
+one-shot mode {
+    in one shot mode, the counter is set.
+	it decrements to FFFF
+	the transition from 0000 to FFFF is what triggers the interrupt.
+	after this the counter continues decrementing (FFFF, FFFE, etc.)
+    If the counter is set to 0, it will count 1.5 cycles because the important transition is 0000 -> FFFF
+	if set to FFFF, timeout occurs 65536.5 cycles later (65535 + 1.5)
+	(i.e., if after decrement the counter is FFFF..)
+    If you set counter to 0003, you will get this sequence:
+	0003, 0002, 0001, 0000, FFFF, FFFE, FFFD ...
+}
+
+continuous mode {
+    applies only to T1
+	after decrementing to FFFF, the counter is reloaded from the latch.
+    If the counter is set to 0, it will count 1.5 cycles because the important transition is 0000 -> FFFF
+    So if you set continuous mode counter to 0003, you will get this sequence:
+	0003, 0002, 0001, 0000, FFFF, 0003, 0002, 0001, 0000, FFFF, ...
+
+	By loading the latches only, the CPU can access the timer during each countdown operation without affecting the timeout in progress.
+	This will then only affect the -next- countdown period.
+
+	The counter will start·counting down on the next C783K clock pulse following the load sequence into TlCH. The new value takes effect NEXT cycle.
+}
+
+ok, let's think about this. I already know that I -have to- be called every cycle. So I might as well just use the cycle-at-a-time design, which is significantly simpler to write and think about. ok, let's try that.
+
+Implications:
+When counter is reset in continuous mode set to FFFF, it will reset to FFFF, so it will have two cycles of FFFF in a row.
+We still need to handle switching from Continuous to OneShot while the timer is armed.
+
+uh ok there's a problem... when we're in single step mode we're calling the handler repeatedly? I could believe the debugger..
+see if we're calling incr_cycle during debugger.. uh yah it's the proforma disassembler, the IRQ handler jumps to C3FA, and it tries to disassemble the first several instructions of C400, which isn't there of course. Hm. What we want is for disassembler to not be able to read any memory if it's not RAM or ROM.

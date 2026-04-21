@@ -15,36 +15,20 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#pragma once
+
 #include <cstdint>
 
 #include "debug.hpp"
 #include "util/DebugFormatter.hpp"
-
-#define MB_6522_DDRA 0x03
-#define MB_6522_DDRB 0x02
-#define MB_6522_ORA  0x01
-#define MB_6522_ORB  0x00
-
-#define MB_6522_T1C_L 0x04
-#define MB_6522_T1C_H 0x05
-#define MB_6522_T1L_L 0x06
-#define MB_6522_T1L_H 0x07
-
-#define MB_6522_T2L_L 0x08
-#define MB_6522_T2C_L 0x08
-#define MB_6522_T2C_H 0x09
-#define MB_6522_SR 0x0A
-#define MB_6522_ACR 0x0B
-#define MB_6522_PCR 0x0C
-#define MB_6522_IFR 0x0D
-#define MB_6522_IER 0x0E
-#define MB_6522_ORA_NH 0x0F
+#include "util/InterruptController.hpp"
+#include "regs.hpp"
 
 #define MB_6522_1 0x00
 #define MB_6522_2 0x80
 
 
-class W6522 {
+class N6522 {
 private:
     union ifr_t {
         uint8_t value;
@@ -88,7 +72,7 @@ private:
 
     uint16_t t1_latch;
     uint16_t t1_counter;  
-    uint8_t t2_latch;
+    uint16_t t2_latch;
     uint16_t t2_counter;
     uint16_t t1_oneshot_pending = 0;
     uint16_t t2_oneshot_pending = 0;
@@ -96,14 +80,29 @@ private:
     bool t1_rollover = false;
     bool t2_rollover = false;
     
-    uint64_t system_cycles;
+    //uint64_t system_cycles;
     uint64_t t1_next_event;
     uint64_t t2_next_event;
 
+    uint64_t t1_instanceID;
+    uint64_t t2_instanceID;
+
     const char *chip_id;
+    NClock *clock;
+    InterruptController *irq_control;
+    uint8_t slot;
+    uint8_t chip;
+
+    const char *reg_names[16] = {
+        "ORB/IRB", "ORA/IRA", "DDRB", "DDRA",
+        "T1C_L", "T1C_H","T1L_L", "T1L_H",
+        "T2L_L", "T2C_H", "SR", "ACR",
+        "PCR", "IFR", "IER", "ORANH"
+    };
 
 public:
-    W6522(const char *chip_id) : chip_id(chip_id) {
+    N6522(const char *chip_id, NClock *clock, InterruptController *irq_controller, uint8_t slot = 0, uint8_t chip = 0) : 
+        chip_id(chip_id), clock(clock), irq_control(irq_controller), slot(slot), chip(chip) {
         t1_counter = 0;
         t2_counter = 0;
         t1_latch = 0;
@@ -119,31 +118,49 @@ public:
         acr = 0;
         pcr = 0;
         sr = 0;
-        system_cycles = 0;
+        //system_cycles = 0;
         t1_next_event = 0;
         t2_next_event = 0;
         t1_rollover = 0;
         t2_rollover = 0;
+
+        bool t1_armed = false;
+        bool t2_armed = false;
+
+        t1_instanceID = 0x10000000 | (slot << 8) | chip;
+        t2_instanceID = 0x10010000 | (slot << 8) | chip;
     };
-    //~W6522();
-    
-    void set_irq_callback(std::function<void(uint8_t irq)> irq_callback);
- 
+    ~N6522() {
+        irq_control->deassert_irq((device_irq_id)chip);
+    };
+
+    uint64_t get_clock_cycles() { return clock->get_vid_cycles(); }
+
+    // Latch a byte onto the input register of Port A. Used by the
+    // Mockingboard bridge when the paired AY drives the data bus on a read.
+    inline void set_ira(uint8_t value) { ira = value; }
+
+    // Accessors needed by the Mockingboard bridge to derive the AY bus
+    // state (post-DDR) from this generic 6522 without leaking write access.
+    inline uint8_t get_ora()  const { return ora;  }
+    inline uint8_t get_orb()  const { return orb;  }
+    inline uint8_t get_ddra() const { return ddra; }
+    inline uint8_t get_ddrb() const { return ddrb; }
+
     void update_interrupt() {
         // for each chip, calculate the IFR bit 7.
 
-        uint8_t irq = ((ifr.value & ier.value) & 0x7F) > 0;
+        bool irq = ((ifr.value & ier.value & 0x7F) > 0) ? true : false;
         // set bit 7 of IFR to the result.
-        ifr.bits.irq = irq;
-
-        bool irq_to_slot = ifr.value & ier.value & 0x7F;
         
-        printf("[%s]: assert irq: %d\n", chip_id, irq_to_slot);
+        ifr.bits.irq = irq;
+        
+        if (DEBUG(DEBUG_MOCKINGBOARD)) printf("[%s]: chip %d assert irq: %d\n", chip_id, chip, (int)irq);
+        irq_control->set_irq((device_irq_id)chip, irq);
         //irq_callback(irq_to_slot);
     }
 
     void incr_cycle() {
-        system_cycles++;
 
         // T1 Logic
         if (t1_counter == 0) { // triggers rollover behavior at -next- cycle, not this one
@@ -208,6 +225,8 @@ public:
 
     void write(uint16_t reg, uint8_t data) {
 
+        if (DEBUG(DEBUG_MOCKINGBOARD)) printf("(%s) write: %s[%02x] = %02x\n", chip_id, reg_names[reg], reg, data);
+        
         switch (reg) {
 
             case MB_6522_DDRA:
@@ -260,12 +279,12 @@ public:
                 t1_oneshot_pending = 1;
                 break;
 
-            // TODO: there is indication that the T2 latch is only for the LO portion (8 bit, not 16-bit)
             case MB_6522_T2L_L:
                 t2_latch = data;
                 break;
             case MB_6522_T2C_H:
-                t2_counter = t2_latch | (data << 8);
+                t2_latch = (t2_latch & 0x00FF) | (data << 8);
+                t2_counter = t2_latch;
                 ifr.bits.timer2 = 0;
                 update_interrupt();
                 t2_oneshot_pending = 1;
@@ -304,7 +323,7 @@ public:
     }
 
     uint8_t read(uint16_t reg) {
-        if (DEBUG(DEBUG_MOCKINGBOARD)) printf("read: %02x => ", reg);
+        if (DEBUG(DEBUG_MOCKINGBOARD)) printf("(%s) read: %s[%02x] => ", chip_id, reg_names[reg], reg);
         uint8_t retval = 0xFF;
 
         switch (reg) {
@@ -393,24 +412,19 @@ public:
         update_interrupt(); // this reads the slot number and does the right IRQ thing.    
     }
 
-    DebugFormatter *debug() {
-        DebugFormatter *df = new DebugFormatter();
 
-        df->addLine("--------- 6522 --------");
-        df->addLine("DDRA: %02X    DDRB: %02X", ddra, ddrb);
-        df->addLine("ORA : %02X    ORB : %02X", ora, orb);
-        df->addLine("IRA : %02X    IRB : %02X", ira, irb);
-        
-        df->addLine("T1L : %04X  T1C: %04X      ", t1_latch, t1_counter);
-        df->addLine("T2L : %04X  T2C: %04X      ", t2_latch, t2_counter);
-        df->addLine("SR  : %02X", sr);
-        df->addLine("ACR : %02X", acr);
-        df->addLine("PCR : %02X", pcr);
-        df->addLine("IFR : %02X    IER: %02X", ifr.value, ier.value|0x80);
-        //df->addLine("IER: %02X                   | IER: %02X", mb_d->d_6522[0].ier.value, mb_d->d_6522[1].ier.value);
+    void debug(DebugFormatter *df) {
 
-        return df;
+        df->addLine("====== (%s) ======", chip_id);
+        df->addLine("DDRA: %02X    DDRB: %02X    O/IRA: %02X/%02X  O/IRB: %02X/%02X",
+            ddra, ddrb, ora, ira, orb, irb);
+        df->addLine("T1L : %04X  T1C: %04X   T2L : %04X  T2C: %04X",
+            t1_latch, t1_counter, t2_latch, t2_counter);
+        df->addLine("SR  : %02X    ACR : %02X    PCR : %02X   IFR : %02X    IER: %02X", 
+            sr, acr, pcr, ifr.value, ier.value|0x80);
+//        df->addLine("T1 Int Timer: %08lld  T2 Int Timer: %08lld", t1_trigger_at, t2_trigger_at);
     }
+
     void debug_one() {
         printf("DDRA %02X DDRB %02X ORA %02X ORB %02X IRA %02X IRB %02X T1[L %04X C: %04X] T2[L %02X C %04X] SR %02X ACR %02X PCR %02X IFR %02X IER %02X\n",
             ddra, ddrb, ora, orb, ira, irb, t1_latch, t1_counter, t2_latch, t2_counter, sr, acr, pcr, ifr.value, ier.value);

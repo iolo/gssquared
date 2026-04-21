@@ -24,7 +24,7 @@
 #include <SDL3/SDL_audio.h>
 
 #include "AY8910-2.hpp"
-#include "N6522.hpp"
+#include "W6522.hpp"
 
 #include "gs2.hpp"
 #include "mb2.hpp"
@@ -135,8 +135,15 @@ public:
             // propagate it up to the system IRQ controller
             this->irq_control->set_irq((device_irq_id)slot, irq);
         });
-        n6522[0] = new N6522("MB_6522 1 0x80", clock, local_irq_control, event_timer, slot, 0);
-        n6522[1] = new N6522("MB_6522 2 0x00", clock, local_irq_control, event_timer, slot, 1);
+        /* n6522[0] = new N6522("MB_6522 1 0x80", clock, local_irq_control, event_timer, slot, 0);
+        n6522[1] = new N6522("MB_6522 2 0x00", clock, local_irq_control, event_timer, slot, 1); */
+        n6522[0] = new N6522("MB_6522 1 0x80", clock, local_irq_control, slot, 0);
+        n6522[1] = new N6522("MB_6522 2 0x00", clock, local_irq_control, slot, 1);
+
+        clock->set_cycle_handler([this]() {
+            n6522[0]->incr_cycle();
+            n6522[1]->incr_cycle();
+        });
 
         // TODO: this doesn't need irq_control or slot
         ay8910s = new AY8910s(&audio_buffer, event_timer, clock /* , irq_control, slot */);
