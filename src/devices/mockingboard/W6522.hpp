@@ -18,6 +18,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdio>
 
 #include "debug.hpp"
 #include "util/DebugFormatter.hpp"
@@ -79,7 +80,14 @@ private:
 
     bool t1_rollover = false;
     bool t2_rollover = false;
-    
+
+    // On TxC_H write, the real 6522 performs a pure load on that cycle with
+    // no decrement; counting resumes on the following cycle. Our cycle_handler
+    // runs AFTER the register write within the same wall cycle, so we mark the
+    // first incr_cycle() following the write to skip decrementing Tx.
+    bool t1_skip_next_decrement = false;
+    bool t2_skip_next_decrement = false;
+
     //uint64_t system_cycles;
     uint64_t t1_next_event;
     uint64_t t2_next_event;
@@ -103,10 +111,30 @@ private:
 public:
     N6522(const char *chip_id, NClock *clock, InterruptController *irq_controller, uint8_t slot = 0, uint8_t chip = 0) : 
         chip_id(chip_id), clock(clock), irq_control(irq_controller), slot(slot), chip(chip) {
-        t1_counter = 0;
-        t2_counter = 0;
-        t1_latch = 0;
-        t2_latch = 0;
+        // Real 6522 power-on state for T1L/T1C/T2L/T2C is undefined garbage
+        // (per AppleWin issue #652: "at power-on, all the 6522 regs have
+        // random values"). Zero-initialising these traps the timers at
+        // $0000 <-> $FFFF in one-shot mode, which breaks games that sample
+        // T1C_L for mb detection without first writing T1C_H (e.g. Skyfox's
+        // LDA/CMP/SBC at $C404). Use a deterministic pseudo-random mix of
+        // slot+chip so behaviour is repeatable across runs while still
+        // presenting a non-degenerate latch/counter to unarmed reads.
+        uint32_t seed = 0xDEADBEEFu
+                      ^ (uint32_t(slot) * 0x9E3779B1u)
+                      ^ (uint32_t(chip) * 0x6A09E667u);
+        auto mix = [&seed]() -> uint16_t {
+            seed ^= seed << 13;
+            seed ^= seed >> 17;
+            seed ^= seed << 5;
+            // Force non-zero to avoid accidentally reproducing the degenerate
+            // T1L=$0000 case unless the guest explicitly writes it.
+            uint16_t v = static_cast<uint16_t>(seed & 0xFFFF);
+            return v ? v : uint16_t(0xA5A5);
+        };
+        t1_latch   = mix();
+        t1_counter = mix();
+        t2_latch   = mix();
+        t2_counter = mix();
         ddra = 0x00;
         ddrb = 0x00;
         ora = 0x00;
@@ -123,6 +151,8 @@ public:
         t2_next_event = 0;
         t1_rollover = 0;
         t2_rollover = 0;
+        t1_skip_next_decrement = false;
+        t2_skip_next_decrement = false;
 
         bool t1_armed = false;
         bool t2_armed = false;
@@ -163,48 +193,72 @@ public:
     void incr_cycle() {
 
         // T1 Logic
-        if (t1_counter == 0) { // triggers rollover behavior at -next- cycle, not this one
-            t1_rollover = 1;
-        }
-
-        if (t1_rollover && (t1_counter == 0xFFFF)) {
-            if (acr & 0x40) { // continuous mode
-                ifr.bits.timer1 = 1; // "Set by 'time out of T1'"
-                update_interrupt();
-
-                t1_counter = t1_latch;
-            } else {         // one-shot mode
-                // if a T1 oneshot was pending, set interrupt status.
-                if (t1_oneshot_pending) {
+        if (t1_skip_next_decrement) {
+            // Consume the load-cycle exemption: no rollover processing or
+            // decrement on the cycle that immediately follows a T1C_H write.
+            t1_skip_next_decrement = false;
+        } else {
+            // Real-6522 underflow has two observable effects across two
+            // consecutive cycles:
+            //   Cycle A (counter enters as 0): IRQ asserts, counter goes to
+            //          $FFFF. This is the cycle the CPU sees the interrupt.
+            //   Cycle B (counter is $FFFF, rollover pending): continuous
+            //          mode reloads the counter from the latch; one-shot
+            //          mode simply continues decrementing ($FFFF -> $FFFE).
+            // Previously both effects happened on Cycle B, delaying the
+            // IRQ by one cycle. That delay was masked by an older
+            // "decrement on load cycle" bug; with the load-cycle skip in
+            // place it must be corrected here. Preserving the two-cycle
+            // underflow keeps the canonical "T1L=$0000 alternates between
+            // $00 and $FF" behavior (mb-audit T6522_B).
+            if (t1_counter == 0) {
+                if (acr & 0x40) { // continuous mode
                     ifr.bits.timer1 = 1; // "Set by 'time out of T1'"
                     update_interrupt();
+                } else {         // one-shot mode
+                    if (t1_oneshot_pending) {
+                        ifr.bits.timer1 = 1; // "Set by 'time out of T1'"
+                        update_interrupt();
+                    }
+                    t1_oneshot_pending = 0;
                 }
-                // We don't schedule a next interrupt - that is only done when writing to T1C-H.
-                // We don't reset the counter to the latch, we continue decrementing from 0.
-                t1_oneshot_pending = 0;
+                t1_rollover = 1;
+                t1_counter--; // 0x0000 -> 0xFFFF
+            } else if (t1_rollover && (t1_counter == 0xFFFF)) {
+                // Real 6522 reloads T1C from T1L on every underflow in both
+                // continuous and one-shot modes; only the *interrupt* is
+                // one-shot (gated above by t1_oneshot_pending). mb-audit
+                // T6522_9 subtest #1 verifies the reload occurs in one-shot.
+                t1_counter = t1_latch;
+                t1_rollover = 0;
+            } else {
                 t1_counter--;
             }
-            t1_rollover = 0; // reset
-        } else {
-            t1_counter--;
         }
-        
+
         // T2 Logic
-        if (t2_counter == 0) {
-            t2_rollover = 1;
-        }
-        if (t2_rollover && (t2_counter == 0xFFFF)) {
-            if (t2_oneshot_pending) {
-                ifr.bits.timer2 = 1; // "Set by 'time out of T2'"
-                update_interrupt();
+        if (t2_skip_next_decrement) {
+            t2_skip_next_decrement = false;
+        } else {
+            // Same single-cycle-earlier IRQ correction as T1: fire on the
+            // cycle the counter enters as 0 (i.e. the 0 -> FFFF transition),
+            // not on the following FFFF cycle. T2 is one-shot only, so the
+            // counter simply continues decrementing past FFFF.
+            if (t2_counter == 0) {
+                if (t2_oneshot_pending) {
+                    ifr.bits.timer2 = 1; // "Set by 'time out of T2'"
+                    update_interrupt();
+                }
+                t2_oneshot_pending = 0;
+                t2_rollover = 1;
+                t2_counter--; // 0x0000 -> 0xFFFF
+            } else if (t2_rollover && (t2_counter == 0xFFFF)) {
+                t2_counter--;  // 0xFFFF -> 0xFFFE
+                t2_rollover = 0;
+            } else {
+                t2_counter--;
             }
-            // We don't schedule a next interrupt - that is only done when writing to T1C-H.
-            // We don't reset the counter to the latch, we continue decrementing from 0.
-            t2_oneshot_pending = 0;
-            t2_rollover = 0; // reset
-        }/*  else { */
-            t2_counter--;
-        /* } */
+        }
     }
 
 #if 0
@@ -277,6 +331,11 @@ public:
                 t1_latch = (t1_latch & 0x00FF) | (data << 8);
                 t1_counter = t1_latch;
                 t1_oneshot_pending = 1;
+                // The cycle in which T1C_H is written is a pure load cycle on
+                // the real 6522 (no T1 decrement). Our cycle_handler runs
+                // after this write within the same wall cycle, so suppress the
+                // next decrement to match real hardware timing (mb-audit 11:03:00).
+                t1_skip_next_decrement = true;
                 break;
 
             case MB_6522_T2L_L:
@@ -288,6 +347,8 @@ public:
                 ifr.bits.timer2 = 0;
                 update_interrupt();
                 t2_oneshot_pending = 1;
+                // Same load-cycle exemption as T1C_H above.
+                t2_skip_next_decrement = true;
                 break;
 
             case MB_6522_PCR:
@@ -356,7 +417,7 @@ public:
                 /* 8 bits from t1 high order latch transferred to mpu */
                 retval = (t1_latch >> 8) & 0xFF;
                 break;
-            case MB_6522_T1C_L:  {  
+            case MB_6522_T1C_L:  {
                 // IFR Timer 1 flag cleared by read T1 counter low. pg 2-42
                 ifr.bits.timer1 = 0;
                 update_interrupt();
