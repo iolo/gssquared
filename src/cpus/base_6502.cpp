@@ -1025,7 +1025,9 @@ inline void read_direct_ind_x(cpu_state *cpu, T &reg, U &index ) {
         eaddr = (uint16_t)(base + index); // calculate effective address
 
         if ((eaddr & 0xFF00) != (base & 0xFF00)) {
-            phantom_read(cpu, (base & 0x00FF00) | ((eaddr + index) & 0xFF));
+            // NMOS/65C02 page-cross phantom read for LDA (zp),Y: address is
+            // (base & 0xFF00) | (eaddr & 0xFF); see write_direct_ind_x note.
+            phantom_read(cpu, (base & 0x00FF00) | (eaddr & 0xFF));
         }
         read_data(cpu, (uint16_t)eaddr, reg);
     }
@@ -1057,7 +1059,15 @@ inline void write_direct_ind_x(cpu_state *cpu, T &reg, U &index ) {
         base = eaddr_16;
         eaddr = (uint16_t)(base + index); // calculate effective address
 
-        phantom_read(cpu, (base & 0x00FF00) | ((eaddr + index) & 0xFF));
+        // NMOS 6502 phantom read for STA (zp),Y: always occurs, at
+        // (base_hi << 8) | ((base_lo + index) & 0xFF)  i.e. the final
+        // effective-address low byte combined with the *un-carried* high
+        // byte. Equivalent to (base & 0xFF00) | (eaddr & 0xFF).
+        // The previous formula added `index` twice, corrupting the low
+        // byte and causing bogus register-side-effect reads e.g. clearing
+        // IFR.T2 on a Mockingboard 6522 during another 6522's setup
+        // (mb-audit 11:14:02).
+        phantom_read(cpu, (base & 0x00FF00) | (eaddr & 0xFF));
         write_data(cpu, (uint16_t)eaddr, reg);
     }
 
