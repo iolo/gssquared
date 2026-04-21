@@ -311,3 +311,20 @@ We still need to handle switching from Continuous to OneShot while the timer is 
 
 uh ok there's a problem... when we're in single step mode we're calling the handler repeatedly? I could believe the debugger..
 see if we're calling incr_cycle during debugger.. uh yah it's the proforma disassembler, the IRQ handler jumps to C3FA, and it tries to disassemble the first several instructions of C400, which isn't there of course. Hm. What we want is for disassembler to not be able to read any memory if it's not RAM or ROM.
+
+ok there was a failure 11:03:00. The fix was to not decrement on the same cycle we loaded - oops regression. Ugh. So complex!
+
+alright, so skyfox got broken again because of Clod's insistence that T1C always reloads from the T1L, even in oneshot mode. and the data sheets can certainly be interpreted that way. but that meant on power-on T1L was 0, and T1C oscillated between 0000 and FFFF, breaking auto-detect in skyfox, quarx, etc. 
+
+So now we are initializing T1L and T1C with pseudo-random values, and I guess when the real MB gets here we can see what these things actually are on powerup.
+
+[ ] Also, while the "mono fix" helped a lot it's not perfect. I should try a longer period than 16 samples.  
+
+oops, test 11:14:02 was failing because of a CPU phantom read problem:
+The NMOS 6502 phantom read for STA (zp),Y in write_direct_ind_x (src/cpus/base_6502.cpp:1060) used (eaddr + index) & 0xFF, which evaluated to base_lo + 2·index — not the correct base_lo + index. On STA (MBBase),Y with Y=$84 to chip-B's T1L_L, that produced a spurious phantom read at $C408 (chip-A's T2C_L), whose read side-effect silently cleared chip-A's IFR.T2 between the underflow and the ISR, dropping the T2 interrupt mb-audit 11:14:02 was expecting. Fixed to (base & 0xFF00) | (eaddr & 0xFF) (same fix applied to the page-cross phantom in read_direct_ind_x for consistency).
+
+need to check other code in CPU for the same problem.
+
+Uh, this isn't right:
+    uint64_t get_clock_cycles() { return clock->get_cycles(); }
+it should be vid_cycles. Why would it have changed this..
