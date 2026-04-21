@@ -617,6 +617,7 @@ static const float normalized_levels[16] = {
                 // TODO: add checks here to detect overdriving/exceeding -1.0/1.0. 
                 // Append the mixed samples to the buffer.
                 //
+#if 1
                 // R-channel decorrelation delay: breaks the L+R phase
                 // cancellation that occurs when a mono speaker acoustically
                 // sums our stereo output. The two AY chips run with
@@ -628,12 +629,27 @@ static const float normalized_levels[16] = {
                 // summed amplitude 2|sin(pi*f*d)| > 0 at every audio
                 // frequency while remaining imperceptible on true stereo
                 // speakers.
+    
                 float r_out = r_delay_buf[r_delay_idx];
                 r_delay_buf[r_delay_idx] = mixed_output[1];
                 r_delay_idx = (r_delay_idx + 1) % MONO_DECORR_DELAY;
 
                 audio_buffer->push_back(mixed_output[0]);
                 audio_buffer->push_back(r_out);
+#endif
+#if 0
+                // max approach - creates harmonics and odd 
+                float l_out = mixed_output[0];
+                float r_out = mixed_output[1];
+                float mono = std::max(l_out, r_out);
+                audio_buffer->push_back(mono);
+                audio_buffer->push_back(mono);
+#endif
+#if 0
+                // no mixdown (stereo)
+                audio_buffer->push_back(mixed_output[0]);
+                audio_buffer->push_back(mixed_output[1]);
+#endif
             }
             
             // Update current_time for the next call
@@ -794,7 +810,7 @@ static const float normalized_levels[16] = {
         // Haas echo threshold (~30ms), so stereo listeners perceive no
         // difference, but it guarantees mono_sum(f) = 2|sin(pi*f*d)| > 0 at
         // every audio frequency -> no more structural cancellation.
-        static constexpr size_t MONO_DECORR_DELAY = 16;
+        static constexpr size_t MONO_DECORR_DELAY = 256;
         float    r_delay_buf[MONO_DECORR_DELAY] = {0.0f};
         uint32_t r_delay_idx                    = 0;
 
