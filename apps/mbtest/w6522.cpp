@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
     clock.set_cycle_handler(cycle_handler);
 
     int recindex = 0;
-    uint64_t system_cycles = 0;
+    int mismatches = 0;
 
     reg_record_t *test_recs = recs[0];
 
@@ -97,9 +97,24 @@ int main(int argc, char *argv[]) {
             if (test_recs[recindex].action == WRITE) {
                 chip.write(test_recs[recindex].reg, test_recs[recindex].value);
                 //printf("write: Reg %02X <= %02X\n", recs[recindex].reg, recs[recindex].value);
-            } else {
+            } else if (test_recs[recindex].action == READ) {
                 uint8_t value = chip.read(test_recs[recindex].reg);
                 //printf("read: Reg %02X => %02X\n", recs[recindex].reg, value);
+            } else if (test_recs[recindex].action == READ_EXPECT) {
+                uint8_t value = chip.read(test_recs[recindex].reg);
+                if (value != test_recs[recindex].value) {
+                    mismatches++;
+                    printf("MISMATCH cycle=%llu reg=%02X expected=%02X actual=%02X\n",
+                           system_cycles,
+                           test_recs[recindex].reg,
+                           test_recs[recindex].value,
+                           value);
+                } else {
+                    printf("MATCH    cycle=%llu reg=%02X value=%02X\n",
+                           system_cycles,
+                           test_recs[recindex].reg,
+                           value);
+                }
             }
             recindex++;
         }
@@ -109,7 +124,11 @@ int main(int argc, char *argv[]) {
         //chip.incr_cycle();
         printf("after   : "); chip.debug_one();
         printf("\n");
-        system_cycles++;
     }
+    if (mismatches) {
+        printf("FAIL: %d read expectation mismatch(es)\n", mismatches);
+        return 1;
+    }
+    printf("PASS: all read expectations matched\n");
     return 0;
 }
