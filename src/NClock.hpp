@@ -22,6 +22,7 @@
 #include "devices/displaypp/VideoScannerII.hpp"
 #include "PlatformIDs.hpp"
 #include "util/EventTimer.hpp"
+#include <functional>
 
 typedef enum {
     CLOCK_FREE_RUN = 0,
@@ -117,6 +118,8 @@ protected:
 
     VideoScannerII *video_scanner = nullptr;
     EventTimer event_vid;
+    // have a predefined vector of max 8 cycle handlers.
+    std::vector<std::function<void()>> cycle_handlers;
 
 public:
     
@@ -133,12 +136,18 @@ public:
         frame_start_c14M = 0;
         frame_end_c14M = current.c14M_per_frame;
         frame_count = 0;
+        
+        // preallocate max size of 8
+        cycle_handlers.reserve(8);
     }
     inline void schedule_vid_event(uint64_t trigger_at, void (*callback)(uint64_t, void*), uint64_t instanceID, void* userData = nullptr) {
         event_vid.scheduleEvent(trigger_at, callback, instanceID, userData);
     }
     inline void cancel_vid_event(uint64_t instanceID) {
         event_vid.cancelEvents(instanceID);
+    }
+    void set_cycle_handler(std::function<void()> cycle_handler) {
+        cycle_handlers.push_back(cycle_handler);
     }
     inline uint64_t get_cycles() { return cycles; } // this should make accessing cycles fast still.
     inline uint64_t get_c14m() { return c_14M; }
@@ -249,7 +258,10 @@ public:
                 video_cycle_14M_count -= 14;
                 video_scanner->video_cycle();
                 video_cycles++;
-                event_vid.processEvents(video_cycles);
+                
+                for (auto &cycle_handler : cycle_handlers) {
+                    cycle_handler();
+                }
             }
             if (scanline_14M_count >= 910) {  // end of scanline
                 c_14M += current.extra_per_scanline;
