@@ -1014,7 +1014,11 @@ inline void read_direct_ind_x(cpu_state *cpu, T &reg, U &index ) {
 
         if constexpr ((CPUTraits::e_mode) || (!CPUTraits::x_16)) { // (c)
             if ((eaddr & 0xFF00) != (base & 0xFF00)) {
-                phantom_read(cpu, (base & 0xFFFF00) | ((eaddr + index) & 0xFF));
+                // Invalid-address phantom: bank|base_hi | ((base_lo + index) & 0xFF).
+                // Since eaddr = base + index, that is eaddr & 0xFF.  Using
+                // (eaddr + index) would double-add the index and corrupt the
+                // low byte (same bug as the NMOS branch fixed below).
+                phantom_read(cpu, (base & 0xFFFF00) | (eaddr & 0xFF));
             }
         } else {  // (b)
             phantom_read(cpu, eaddr);
@@ -1050,7 +1054,10 @@ inline void write_direct_ind_x(cpu_state *cpu, T &reg, U &index ) {
         eaddr = base + index; // calculate effective address
 
         if constexpr ((CPUTraits::e_mode) || (!CPUTraits::x_16)) { // (c)
-            phantom_read(cpu, (base & 0xFFFF00) | ((eaddr + index) & 0xFF));
+            // Invalid-address phantom on STA (dp),Y: bank|base_hi | (eaddr & 0xFF).
+            // eaddr = base + index already, so (eaddr + index) would double-add
+            // the index -- same bug fixed on the NMOS branch below.
+            phantom_read(cpu, (base & 0xFFFF00) | (eaddr & 0xFF));
         } else {  // (b)
             phantom_read(cpu, eaddr);
         }
