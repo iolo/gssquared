@@ -23,6 +23,7 @@ private:
     SDL_AudioDeviceID device_id;
     uint16_t volume_setting = 6;
     float gain = 1.0f;
+    bool decorrelation_enabled = true;
     void printSpec(SDL_AudioSpec spec);
 
 public:
@@ -49,6 +50,14 @@ public:
     inline float get_gain() { return gain; }
     inline uint16_t get_volume() { return volume_setting; }
     void getCurrentAudioFormat(DebugFormatter *df);
+
+    // Shared R-channel decorrelation toggle. Audio generators that emit
+    // correlated stereo content (e.g. Mockingboard's two AY chips) can
+    // consult this and apply a short R-channel delay to avoid L+R
+    // cancellation when the host sums the channels on a mono speaker.
+    inline bool get_decorrelation() const { return decorrelation_enabled; }
+    inline void set_decorrelation(bool v) { decorrelation_enabled = v; }
+    inline void toggle_decorrelation()    { decorrelation_enabled = !decorrelation_enabled; }
 
     /*     void set_mute(bool mute); // TODO: leave here for ideas.
     bool get_mute();

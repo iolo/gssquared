@@ -16,8 +16,9 @@
 // Ranges already occupied: 1-4, 100-103, 200-204, 300, 400-401, 501, 600-6xx, 700-702
 #define IDM_FILE_CLOSE       800
 #define IDM_APP_QUIT         801
-#define IDM_SETTINGS_SLEEP   802
-#define IDM_HELP_OPEN_DOCS   900
+#define IDM_SETTINGS_SLEEP        802
+#define IDM_SETTINGS_AUDIO_DECORR 803
+#define IDM_HELP_OPEN_DOCS        900
 
 // DEPRECATED: see commented-out WM_ENTERMENULOOP/WM_EXITMENULOOP/WM_TIMER block below.
 // #define MENU_TIMER_ID   1
@@ -180,12 +181,16 @@ static void updatePopupState(HMENU popup)
 
     // ── Settings (top-level popup; contains Speed+Controller submenus + Sleep) ─
     if (popup == g_settingsPopup) {
-        bool sleeping = mi->getSleepMode();
+        bool sleeping   = mi->getSleepMode();
+        bool decorr_on  = mi->getAudioDecorrelation();
         int n = GetMenuItemCount(g_settingsPopup);
         for (int i = 0; i < n; ++i) {
             UINT id = getItemId(g_settingsPopup, i);
             if (id == IDM_SETTINGS_SLEEP) {
                 setItemCheck(g_settingsPopup,  i, sleeping);
+                setItemEnable(g_settingsPopup, i, running);
+            } else if (id == IDM_SETTINGS_AUDIO_DECORR) {
+                setItemCheck(g_settingsPopup,  i, decorr_on);
                 setItemEnable(g_settingsPopup, i, running);
             } else {
                 // Speed and Controller submenu parent items (id == 0 for submenus)
@@ -262,7 +267,8 @@ static void dispatchCommand(UINT id)
     case MENU_EDIT_PASTE_TEXT:  mi->editPasteText();  return;
 
     // Settings
-    case IDM_SETTINGS_SLEEP: mi->toggleSleepMode(); return;
+    case IDM_SETTINGS_SLEEP:        mi->toggleSleepMode();         return;
+    case IDM_SETTINGS_AUDIO_DECORR: mi->toggleAudioDecorrelation(); return;
 
     // Help
     case IDM_HELP_OPEN_DOCS:
@@ -391,7 +397,8 @@ static void setupMenus()
     AppendMenuW(g_settingsPopup, MF_STRING | MF_POPUP,
                 reinterpret_cast<UINT_PTR>(g_controllerMenu), L"Game Controller");
 
-    AppendMenuW(g_settingsPopup, MF_STRING, IDM_SETTINGS_SLEEP, L"Sleep / Busy Wait");
+    AppendMenuW(g_settingsPopup, MF_STRING, IDM_SETTINGS_SLEEP,        L"Sleep / Busy Wait");
+    AppendMenuW(g_settingsPopup, MF_STRING, IDM_SETTINGS_AUDIO_DECORR, L"Mono Helper");
 
     AppendMenuW(g_menuBar, MF_STRING | MF_POPUP,
                 reinterpret_cast<UINT_PTR>(g_settingsPopup), L"Settings");

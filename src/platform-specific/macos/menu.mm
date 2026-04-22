@@ -111,6 +111,7 @@ I don't know what all these words mean exactly. But I confirmed it does seem to 
 - (void)speed7_1:(id)sender;
 - (void)speed14_3:(id)sender;
 - (void)toggleSleepMode:(id)sender;
+- (void)toggleAudioDecorrelation:(id)sender;
 - (void)controllerMode:(id)sender;
 - (void)monitorComposite:(id)sender;
 - (void)monitorGSRGB:(id)sender;
@@ -169,6 +170,7 @@ I don't know what all these words mean exactly. But I confirmed it does seem to 
 - (void)speed14_3:(id)sender { getMenuInterface()->setSpeed(SPEED_14_3); (void)sender; }
 
 - (void)toggleSleepMode:(id)sender { getMenuInterface()->toggleSleepMode(); (void)sender; }
+- (void)toggleAudioDecorrelation:(id)sender { getMenuInterface()->toggleAudioDecorrelation(); (void)sender; }
 
 - (void)controllerMode:(id)sender {
 	NSMenuItem *item = (NSMenuItem *)sender;
@@ -209,7 +211,8 @@ I don't know what all these words mean exactly. But I confirmed it does seem to 
 }
 @end
 
-#define SETTINGS_TAG_SLEEP_MODE 1
+#define SETTINGS_TAG_SLEEP_MODE    1
+#define SETTINGS_TAG_AUDIO_DECORR  2
 
 @interface SettingsMenuDelegate : NSObject <NSMenuDelegate>
 @end
@@ -219,6 +222,8 @@ I don't know what all these words mean exactly. But I confirmed it does seem to 
 	for (NSMenuItem *item in [menu itemArray]) {
 		if ([item tag] == SETTINGS_TAG_SLEEP_MODE) {
 			[item setState:getMenuInterface()->getSleepMode() ? NSControlStateValueOn : NSControlStateValueOff];
+		} else if ([item tag] == SETTINGS_TAG_AUDIO_DECORR) {
+			[item setState:getMenuInterface()->getAudioDecorrelation() ? NSControlStateValueOn : NSControlStateValueOff];
 		}
 	}
 }
@@ -497,6 +502,14 @@ static void setupMenus(void) {
 	[sleepItem setTarget:sMenuHandler];
 	[sleepItem setTag:SETTINGS_TAG_SLEEP_MODE];
 	[settingsMenu addItem:sleepItem];
+
+	NSMenuItem *audioDecorrItem = [[[NSMenuItem alloc]
+		initWithTitle:NSLocalizedString(@"Mono Helper", nil)
+		       action:@selector(toggleAudioDecorrelation:)
+		keyEquivalent:@""] autorelease];
+	[audioDecorrItem setTarget:sMenuHandler];
+	[audioDecorrItem setTag:SETTINGS_TAG_AUDIO_DECORR];
+	[settingsMenu addItem:audioDecorrItem];
 
 	// Display menu
 	NSMenu *displayMenu = addMenu(NSLocalizedString(@"Display", nil));

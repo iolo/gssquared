@@ -146,7 +146,7 @@ public:
         });
 
         // TODO: this doesn't need irq_control or slot
-        ay8910s = new AY8910s(&audio_buffer, event_timer, clock /* , irq_control, slot */);
+        ay8910s = new AY8910s(&audio_buffer, event_timer, clock, audio_system /* , irq_control, slot */);
 
         this->clock = clock;
         this->irq_control = irq_control;

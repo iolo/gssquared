@@ -5,6 +5,7 @@
 #include "platform-specific/menu.h"
 #include "debugger/debugwindow.hpp"
 #include "computer.hpp"
+#include "util/AudioSystem.hpp"
 #include "util/mount.hpp"
 #include "devices/game/gamecontroller.hpp"
 #include "Module_ID.hpp"
@@ -52,6 +53,10 @@ void MenuInterface::toggleSleepMode() {
 	gs2_app_values.sleep_mode = !gs2_app_values.sleep_mode;
 }
 
+void MenuInterface::toggleAudioDecorrelation() {
+	if (computer_ && computer_->audio_system) computer_->audio_system->toggle_decorrelation();
+}
+
 int MenuInterface::getCurrentSpeed() {
 	if (!computer_ || !computer_->clock) return -1;
 	return (int)computer_->clock->get_clock_mode();
@@ -74,6 +79,10 @@ int MenuInterface::getCurrentMonitor() {
 
 bool MenuInterface::getSleepMode() {
 	return gs2_app_values.sleep_mode;
+}
+
+bool MenuInterface::getAudioDecorrelation() {
+	return computer_ && computer_->audio_system ? computer_->audio_system->get_decorrelation() : false;
 }
 
 bool MenuInterface::isEmulationRunning() {

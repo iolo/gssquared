@@ -7,6 +7,7 @@
 #include "debug.hpp"
 #include "util/EventTimer.hpp"
 #include "util/InterruptController.hpp"
+#include "util/AudioSystem.hpp"
 #include "NClock.hpp"
 
 enum AY_Registers {
@@ -118,8 +119,8 @@ static const float normalized_levels[16] = {
         }
 
     public:
-        AY8910s(std::vector<float>* buffer, EventTimer *event_timer,  NClock *clock /* , InterruptController *irq_control, uint8_t slot */) 
-            : current_time(0.0), time_accumulator(0.0), envelope_time_accumulator(0.0), audio_buffer(buffer) {
+        AY8910s(std::vector<float>* buffer, EventTimer *event_timer,  NClock *clock, AudioSystem *audio_system /* , InterruptController *irq_control, uint8_t slot */) 
+            : current_time(0.0), time_accumulator(0.0), envelope_time_accumulator(0.0), audio_buffer(buffer), audio_system(audio_system) {
             // Initialize per-chip bus address latch
             reg_num[0] = 0;
             reg_num[1] = 0;
@@ -614,42 +615,31 @@ static const float normalized_levels[16] = {
 #endif
                     
                 }
-                // TODO: add checks here to detect overdriving/exceeding -1.0/1.0. 
+                // TODO: add checks here to detect overdriving/exceeding -1.0/1.0.
                 // Append the mixed samples to the buffer.
                 //
-#if 1
-                // R-channel decorrelation delay: breaks the L+R phase
-                // cancellation that occurs when a mono speaker acoustically
-                // sums our stereo output. The two AY chips run with
-                // independent tone-counter phases (as real hardware does),
-                // so identical content on both chips can become 180 degrees
-                // out of phase per channel; a straight L+R sum would then
-                // cancel to silence on a single-speaker device. A short
+                // R-channel decorrelation delay (gated by AudioSystem): breaks
+                // the L+R phase cancellation that occurs when a mono speaker
+                // acoustically sums our stereo output. The two AY chips run
+                // with independent tone-counter phases (as real hardware
+                // does), so identical content on both chips can become 180
+                // degrees out of phase per channel; a straight L+R sum would
+                // then cancel to silence on a single-speaker device. A short
                 // delay on R (well below the Haas echo threshold) makes the
                 // summed amplitude 2|sin(pi*f*d)| > 0 at every audio
                 // frequency while remaining imperceptible on true stereo
                 // speakers.
-    
-                float r_out = r_delay_buf[r_delay_idx];
-                r_delay_buf[r_delay_idx] = mixed_output[1];
-                r_delay_idx = (r_delay_idx + 1) % MONO_DECORR_DELAY;
+                if (audio_system && audio_system->get_decorrelation()) {
+                    float r_out = r_delay_buf[r_delay_idx];
+                    r_delay_buf[r_delay_idx] = mixed_output[1];
+                    r_delay_idx = (r_delay_idx + 1) % MONO_DECORR_DELAY;
 
-                audio_buffer->push_back(mixed_output[0]);
-                audio_buffer->push_back(r_out);
-#endif
-#if 0
-                // max approach - creates harmonics and odd 
-                float l_out = mixed_output[0];
-                float r_out = mixed_output[1];
-                float mono = std::max(l_out, r_out);
-                audio_buffer->push_back(mono);
-                audio_buffer->push_back(mono);
-#endif
-#if 0
-                // no mixdown (stereo)
-                audio_buffer->push_back(mixed_output[0]);
-                audio_buffer->push_back(mixed_output[1]);
-#endif
+                    audio_buffer->push_back(mixed_output[0]);
+                    audio_buffer->push_back(r_out);
+                } else {
+                    audio_buffer->push_back(mixed_output[0]);
+                    audio_buffer->push_back(mixed_output[1]);
+                }
             }
             
             // Update current_time for the next call
@@ -794,6 +784,7 @@ static const float normalized_levels[16] = {
         double envelope_time_accumulator;  // New accumulator for envelope timing
         std::deque<RegisterEvent> pending_events;
         std::vector<float>* audio_buffer;  // Pointer to external audio buffer
+        AudioSystem *audio_system = nullptr;  // Shared audio settings (decorrelation, etc.)
         float alpha;
 
         // Mono-compatibility decorrelation delay on the R output channel.

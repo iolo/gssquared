@@ -190,6 +190,11 @@ static void build_menu_bar()
         if (ImGui::MenuItem("Sleep / Busy Wait", nullptr, sleep_on))
             mi->toggleSleepMode();
 
+        // R-Channel Decorrelation — available regardless of running state
+        bool ad_on = mi->getAudioDecorrelation();
+        if (ImGui::MenuItem("Mono Helper", nullptr, ad_on))
+            mi->toggleAudioDecorrelation();
+
         ImGui::EndMenu();
     }
 

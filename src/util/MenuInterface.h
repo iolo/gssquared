@@ -42,6 +42,7 @@ public:
 	void setSpeed(int speed_id);
 	void setMonitor(int monitor_id);
 	void toggleSleepMode();
+	void toggleAudioDecorrelation();
 	void displayFullScreen();
 	void editCopyScreen();
 	void editPasteText();
@@ -53,6 +54,7 @@ public:
 	int  getCurrentSpeed();
 	int  getCurrentMonitor();
 	bool getSleepMode();
+	bool getAudioDecorrelation();
 	bool isEmulationRunning();
 	bool isPaused();
 	bool isMouseCaptured();
