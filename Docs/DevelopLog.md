@@ -11558,3 +11558,23 @@ Good catch on proposing the mono test — that A/B result was the key evidence t
 
 How did I never think to test this with stereo speakers before? I just assumed the problem was in my code. Hah! That'll lear me!
 
+## Apr 21, 2026
+
+yes, it's been 4 days since I journalled in this file. Most of the work is in MB.md. That a rabbit hole that was. BUT, we are now passing the mb-audit 6522 tests (not yet passing AY tests). And a variety of other issues were fixed:
+* incorrect calculation of phantom read address in STA (ZP),Y
+* mockingboard audio cut-out is related to same signal played in l/r speakers slightly out of phase. Implemented one fix which helps but needs a little more attention.
+* 6522 is now per-cycle and there is a per-cycle callback mechanism IN nclock.
+* fixed IRQ sampling so it occurs 2nd cycle before end of instruction and matches known documentation of 6502 IRQ behavior. This was validated against real GS and //e with Mockingboard.
+
+Going to have Clod do an audit for other similar problems to STA (ZP),Y. Ah yeah the 816 has the same problem a few lines above. Let's see if Clod can find it.
+
+The decorrelation works better when I push it to 256 samples, which is about 5ms. gives it a bit of a "big room" reverb feel. doesn't hurt the tonality too much. Stereo is certainly the best here tho. So, for sure have a user option.
+
+[ ] Add "Mockingboard/Mono" menu setting to enable decorrelation on right channel.  
+[ ] add mockingboard cycle hook into NClockIIgs
+
+When mockingboard is on but all of one chip is off, should we treat it as mono and copy live chip to the other channel?
+
+[ ] IIe - any key down bit (C010[7] erroneous comes on when I press a modifier key)  
+
+[x] uhh double lores with the RGB scanner is wrong  
