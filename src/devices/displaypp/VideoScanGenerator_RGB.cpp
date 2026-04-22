@@ -427,11 +427,14 @@ void VideoScanGenerator_RGB::generate_frame(ScanBuffer *frame_scan)
                     sawdata = true;
                     scanner_freq = 14;
                     
+                    // To reproduce a motherboard color, store the motherboard color, rotated right one bit, in aux card ram. - Sather IIe 8-29
+                    // So we want to rotate LEFT one bit to convert this to the mobo color.
                     uint8_t tchar = scan.auxbyte;
 
                     if (vcount & 4) { // if we're in the second half of the scanline, shift the byte right 4 bits to get the other nibble
                         tchar = tchar >> 4;
                     }
+                    tchar = (tchar << 1) | ((tchar & 0x08) >> 3);                    
 
                     RGBA_t color = txt_lut[tchar & 0x0F];
                     frame_vsg->push_n(color, 7);
