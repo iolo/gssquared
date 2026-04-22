@@ -139,8 +139,11 @@ public:
         ddrb = 0x00;
         ora = 0x00;
         orb = 0x00;
-        ira = 0x00;
-        irb = 0x00;
+        // Port A/B inputs default to the pulled-up state ($FF) seen on a
+        // real Mockingboard when no external device is driving the pins.
+        // mb-audit Test6522AfterReset subTests #8/#A verify IRB/IRA==$FF.
+        ira = 0xFF;
+        irb = 0xFF;
         ifr.value = 0;
         ier.value = 0;
         acr = 0;
@@ -403,7 +406,11 @@ public:
 
                 break;
             case MB_6522_ORB: {
-                uint8_t b_in = orb & (~ddrb);
+                // Input bits come from the external pins (captured in irb),
+                // not from ORB. On the Mockingboard, PB lines have pull-ups
+                // so with DDRB=0 (all inputs) a reset read returns $FF
+                // (mb-audit Test6522AfterReset subTest #8).
+                uint8_t b_in  = irb & (~ddrb);
                 uint8_t b_out = orb & ddrb;
                 retval = b_out | b_in;
                 } 
@@ -465,12 +472,47 @@ public:
         return retval;
     }
 
+    // Hardware RES behavior per the 6522 (and W65C22) datasheet: clears
+    // ORA, ORB, DDRA, DDRB, ACR, PCR, IFR, IER, and SR. The T1/T2 latches
+    // and counters are *not* affected (mb-audit Test6522AfterReset subTest
+    // #2 explicitly requires T1L to retain its pre-reset value). The
+    // datasheet also says reset "disables the timers" - model that by
+    // clearing the pending/rollover state so any in-flight underflow that
+    // would otherwise still fire after reset is discarded.
     void reset() {
-        acr = 0;
+        // Port registers and direction registers.
+        ora  = 0x00;
+        orb  = 0x00;
+        ddra = 0x00;
+        ddrb = 0x00;
+        // After reset DDR{A,B}=0 (all inputs); with Mockingboard pull-ups
+        // on Port A (from the AY bus) and Port B, reading I{R,R}{A,B}
+        // should return $FF. mb-audit Test6522AfterReset subTests #8/#A.
+        ira = 0xFF;
+        irb = 0xFF;
+        // Control / status registers.
+        pcr  = 0x00;
+        sr   = 0x00;
+        acr  = 0x00;
+        // Clear all pending interrupt flags and disable all interrupt
+        // enables (bit 7 always reads back as 1 via the read path).
         ifr.value = 0;
         ier.value = 0;
 
-        update_interrupt(); // this reads the slot number and does the right IRQ thing.    
+        // Disable both timers. Without this, a T1 that was running in
+        // continuous mode before reset (ACR bit 6 set) with a pending
+        // one-shot flag would still fire its next underflow because reset
+        // only clears ACR (switching it to one-shot) but leaves
+        // t1_oneshot_pending latched. mb-audit Test6522AfterReset subTest
+        // #4 requires IFR bits T1/T2 to read 0 after reset.
+        t1_oneshot_pending = 0;
+        t2_oneshot_pending = 0;
+        t1_rollover = false;
+        t2_rollover = false;
+        t1_skip_next_decrement = false;
+        t2_skip_next_decrement = false;
+
+        update_interrupt(); // this reads the slot number and does the right IRQ thing.
     }
 
 

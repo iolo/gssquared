@@ -121,9 +121,12 @@ static const float normalized_levels[16] = {
     public:
         AY8910s(std::vector<float>* buffer, EventTimer *event_timer,  NClock *clock, AudioSystem *audio_system /* , InterruptController *irq_control, uint8_t slot */) 
             : current_time(0.0), time_accumulator(0.0), envelope_time_accumulator(0.0), audio_buffer(buffer), audio_system(audio_system) {
-            // Initialize per-chip bus address latch
-            reg_num[0] = 0;
-            reg_num[1] = 0;
+            // Initialize per-chip bus address latch to "invalid / no register
+            // selected" so writes without a preceding LATCH are ignored
+            // (matches AY8913 power-on/reset behavior; audited by mb-audit
+            // TestAYLatchAddress / TestAYReadHiZ).
+            reg_num[0] = 0xFF;
+            reg_num[1] = 0xFF;
             // Initialize chips
             for (int c = 0; c < 2; c++) {
                 // Initialize registers to 0
@@ -180,7 +183,10 @@ static const float normalized_levels[16] = {
                 chips[c].registers[Mixer_Control] = 0x3F; // channels disabled
                 chips[c].live_registers[Mixer_Control] = 0x3F; // channels disabled
                 chips[c].mixer_control = 0x3F; // channels disabled
-                reg_num[c] = 0;
+                // Invalidate the AY register-address latch on reset (see
+                // constructor comment). Any value >= AY_8913_REGISTER_COUNT
+                // serves as the sentinel for "no register selected".
+                reg_num[c] = 0xFF;
             }
             // Zero the R-channel decorrelation delay line so reset produces
             // a clean output with no residual samples from the previous run.
@@ -203,28 +209,48 @@ static const float normalized_levels[16] = {
         AyBusResult busCycle(uint8_t chip_index, uint8_t pa, uint8_t pb, double time_seconds) {
             if (chip_index > 1) return { false, 0 };
 
-            // ~RESET asserted: zero all 16 registers at this timestamp and clear the address latch.
+            // ~RESET asserted: zero all 16 registers at this timestamp and
+            // invalidate the address latch. A subsequent WRITE (without a new
+            // LATCH) must be ignored, and a subsequent READ must produce HiZ
+            // (no data driven onto Port A).
             if ((pb & 0b100) == 0) {
                 for (uint8_t r = 0; r < AY_8913_REGISTER_COUNT; r++) {
                     queueRegisterChange(time_seconds, chip_index, r, 0);
                 }
-                reg_num[chip_index] = 0;
+                reg_num[chip_index] = 0xFF;
                 return { false, 0 };
             }
 
             switch (pb & 0b011) {
                 case 0b11: // latch address
-                    reg_num[chip_index] = pa & 0x0F;
+                    // Real AY8913 decodes the full 8-bit address on Port A.
+                    // Any value with the high nibble non-zero (or any value
+                    // >= AY_8913_REGISTER_COUNT) is "unmatched" and leaves
+                    // the chip with no register selected. Store the raw byte
+                    // and let the WRITE/READ cases validate it.
+                    reg_num[chip_index] = pa;
                     if (DEBUG(DEBUG_MOCKINGBOARD)) printf("AY busCycle: latch chip %u reg %02x\n", chip_index, reg_num[chip_index]);
                     return { false, 0 };
                 case 0b10: // write
-                    queueRegisterChange(time_seconds, chip_index, reg_num[chip_index], pa);
-                    if (DEBUG(DEBUG_MOCKINGBOARD)) printf("AY busCycle: write [%lf] chip %u reg %02x val %02x\n", time_seconds, chip_index, reg_num[chip_index], pa);
+                    if (reg_num[chip_index] < AY_8913_REGISTER_COUNT) {
+                        queueRegisterChange(time_seconds, chip_index, reg_num[chip_index], pa);
+                        if (DEBUG(DEBUG_MOCKINGBOARD)) printf("AY busCycle: write [%lf] chip %u reg %02x val %02x\n", time_seconds, chip_index, reg_num[chip_index], pa);
+                    } else {
+                        if (DEBUG(DEBUG_MOCKINGBOARD)) printf("AY busCycle: write ignored (unlatched) chip %u latch=%02x val %02x\n", chip_index, reg_num[chip_index], pa);
+                    }
                     return { false, 0 };
                 case 0b01: { // read
-                    uint8_t v = read_register(chip_index, reg_num[chip_index]);
-                    if (DEBUG(DEBUG_MOCKINGBOARD)) printf("AY busCycle: read chip %u reg %02x -> %02x\n", chip_index, reg_num[chip_index], v);
-                    return { true, v };
+                    if (reg_num[chip_index] < AY_8913_REGISTER_COUNT) {
+                        uint8_t v = read_register(chip_index, reg_num[chip_index]);
+                        if (DEBUG(DEBUG_MOCKINGBOARD)) printf("AY busCycle: read chip %u reg %02x -> %02x\n", chip_index, reg_num[chip_index], v);
+                        return { true, v };
+                    }
+                    // No register selected: AY data bus is HiZ, so the 6522
+                    // Port A reads whatever is on the bus (typically $FF via
+                    // pull-ups on the Mockingboard). Returning drove=false
+                    // lets the board preserve the existing IRA / DDR state.
+                    if (DEBUG(DEBUG_MOCKINGBOARD)) printf("AY busCycle: read HiZ (unlatched) chip %u latch=%02x\n", chip_index, reg_num[chip_index]);
+                    return { false, 0 };
                 }
                 default: // 0b00 inactive
                     return { false, 0 };

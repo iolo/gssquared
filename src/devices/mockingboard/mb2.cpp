@@ -162,6 +162,10 @@ public:
         vid_cycles_rate = clock->get_vid_cycles_per_second();
 
         stream = audio_system->create_stream(OUTPUT_SAMPLE_RATE_INT, 2, SDL_AUDIO_F32LE, false);
+
+        // Port A pull-ups hold the bus high at power-on; match reset().
+        n6522[0]->set_ira(0xFF);
+        n6522[1]->set_ira(0xFF);
     }
     ~Mockingboard() {
         audio_system->destroy_stream(stream);
@@ -194,6 +198,13 @@ public:
             AyBusResult r = ay8910s->busCycle(chip, pa, pb, t);
             if (r.drove_data) {
                 n6522[chip]->set_ira(r.data);
+            } else {
+                // AY is tri-stated (INACTIVE, LATCH, WRITE, RESET, or READ
+                // with no register latched). The Mockingboard's Port A bus
+                // has pull-ups, so the VIA sees $FF on its PA pins. Model
+                // this so that TestAYReadHiZ and similar audits see the
+                // "pulled high" bus that real hardware produces.
+                n6522[chip]->set_ira(0xFF);
             }
         }
     }
@@ -245,6 +256,11 @@ public:
         n6522[0]->reset();
         n6522[1]->reset();
         ay8910s->reset();
+        // Port A pull-ups on the Mockingboard hold the bus high whenever
+        // neither the AY nor the VIA is driving. Pre-seed IRA so the CPU
+        // sees $FF on the very first ORA read (before any bus cycle).
+        n6522[0]->set_ira(0xFF);
+        n6522[1]->set_ira(0xFF);
     }
 
     DebugFormatter *debug() {
