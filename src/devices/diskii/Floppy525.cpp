@@ -152,6 +152,14 @@ bool Floppy525::mount(uint64_t key, media_descriptor *media_in) {
         std::cout << "Mounted disk " << media_in->filestub << " volume " << media_in->dos33_volume << std::endl;
         /* printf("Mounted disk %s volume %d\n", media->filestub, media->dos33_volume); */
     }
+    // reset per-session drive state so stale values from a previous disk
+    // don't affect the first reads of the newly inserted disk. Q6/Q7 are
+    // controlled by the emulated CPU and are intentionally left alone.
+    head_position = 0;
+    bit_position = 0;
+    read_shift_register = 0;
+    write_shift_register = 0;
+
     write_protect = media_in->write_protected;
     is_mounted = true;
     media_d = media_in;
