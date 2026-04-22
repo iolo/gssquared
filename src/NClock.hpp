@@ -117,7 +117,7 @@ protected:
     uint64_t frame_count = 0;
 
     VideoScannerII *video_scanner = nullptr;
-    EventTimer event_vid;
+    //EventTimer event_vid;
     // have a predefined vector of max 8 cycle handlers.
     std::vector<std::function<void()>> cycle_handlers;
 
@@ -140,12 +140,12 @@ public:
         // preallocate max size of 8
         cycle_handlers.reserve(8);
     }
-    inline void schedule_vid_event(uint64_t trigger_at, void (*callback)(uint64_t, void*), uint64_t instanceID, void* userData = nullptr) {
+   /*  inline void schedule_vid_event(uint64_t trigger_at, void (*callback)(uint64_t, void*), uint64_t instanceID, void* userData = nullptr) {
         event_vid.scheduleEvent(trigger_at, callback, instanceID, userData);
     }
     inline void cancel_vid_event(uint64_t instanceID) {
         event_vid.cancelEvents(instanceID);
-    }
+    } */
     void set_cycle_handler(std::function<void()> cycle_handler) {
         cycle_handlers.push_back(cycle_handler);
     }
