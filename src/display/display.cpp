@@ -317,6 +317,7 @@ bool handle_display_event(display_state_t *ds, const SDL_Event &event) {
         ds->event_queue->addEvent(new Event(EVENT_SHOW_MESSAGE, 0, msgbuf));
         return true;
     }
+    // TODO: get rid of these for production
     if (key == SDLK_F7) {
         if (mod & SDL_KMOD_CTRL) {
             // dump hires image page 1
@@ -875,8 +876,15 @@ void init_mb_device_display_common(computer_t *computer, SlotType_t slot, bool c
 
     display_update_video_scanner(ds);
 
-    computer->sys_event->registerHandler(SDL_EVENT_KEY_DOWN, [ds](const SDL_Event &event) {
+    computer->sys_event->registerHandler(SDL_EVENT_KEY_UP, [ds](const SDL_Event &event) {
         return handle_display_event(ds, event);
+    });
+    computer->sys_event->registerHandler(SDL_EVENT_KEY_DOWN, [ds](const SDL_Event &event) {
+        int key = event.key.key;
+        if ((key == SDLK_F7) || (key == SDLK_F8) || (key == SDLK_KP_PLUS) || (key == SDLK_KP_MINUS)) {
+            return true; // eat the keydown
+        }
+        return false;
     });
 
     computer->register_shutdown_handler([ds]() {

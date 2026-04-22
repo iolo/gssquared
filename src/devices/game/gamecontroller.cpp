@@ -520,6 +520,13 @@ void init_mb_game_controller(computer_t *computer, SlotType_t slot) {
     computer->sys_event->registerHandler(SDL_EVENT_KEY_DOWN, [ds, computer](const SDL_Event &event) {
         int key = event.key.key;
         if (key == SDLK_F6) {
+            return true;
+        }
+        return false;
+    });
+    computer->sys_event->registerHandler(SDL_EVENT_KEY_UP, [ds, computer](const SDL_Event &event) {
+        int key = event.key.key;
+        if (key == SDLK_F6) {
             toggle_joystick_mode(ds);
             return true;
         }

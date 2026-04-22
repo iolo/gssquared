@@ -11575,6 +11575,26 @@ The decorrelation works better when I push it to 256 samples, which is about 5ms
 
 When mockingboard is on but all of one chip is off, should we treat it as mono and copy live chip to the other channel?
 
-[ ] IIe - any key down bit (C010[7] erroneous comes on when I press a modifier key)  
+[x] IIe - any key down bit (C010[7] erroneous comes on when I press a modifier key)  
 
 [x] uhh double lores with the RGB scanner is wrong  
+
+## Apr 22, 2026
+
+I did the AKD change to IIe, however, this has exposed an issue. All my Fxx shortcut keys typically check on key down. the problem is, when the corresponding key up arrives, the various UI elements have -not- captured that and so the up bleeds through to the keyboard and we go negative on the key count.
+
+options:
+1. in addition to modifiers, ignore all the function and special keys like ins, home, etc that we use but which are unused on ii+/iie.
+2. have keyboard filter on known keys for AKD and ignore all others.
+3. insert key up handlers for all the UI elements, which will eat the key up (or down, as appropriate).
+
+3 is more work but ultimately cleaner long run, as I don't have to encode all the UI keys into keyboard; I imagine the same issue exists on the GS and might be why ctrl-oa-reset sometimes gives us a backspace? (key up that ADB didn't record a down for).
+
+There is also the choice of keyup or keydown to trigger the events. if we trigger on keyup, then we by default ignore auto-repeats, which let's be frank, autorepeating my hot keys is nonsensical.
+
+I think this may also imply having a special event dispatcher for keys, to send both the up/down to the same handler. then the up and down handling is in the same lambda?
+
+so Drol is supposed to use AKD but I don't think it does. this internet post: "Arrow keys to move the guy around, simple enough, right? Sometimes it works....then stops working a few seconds later, leaving the player walking in one direction. Or the keys do nothing at all."
+well that's what I'm seeing.. oh, ctrl-J switches between keyboard and joystick mode, so don't use the down arrow!!! ok so it's probably fine, just not using AKD. Well, Jason may implement AKD!
+
+OK, I've gone through that.

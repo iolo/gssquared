@@ -84,31 +84,13 @@ video_system_t::video_system_t(computer_t *computer) {
         window_resize(event);
         return true;
     });
-    /* computer->dispatch->registerHandler(SDL_EVENT_MOUSE_BUTTON_DOWN, [this](const SDL_Event &event) {
-        // if control is also down, toggle mouse capture.
-        SDL_Keymod km = SDL_GetModState();
-        if (!(km & SDL_KMOD_CTRL)) return false;
-
-        bool newstate = ! is_mouse_captured();
-        bool result = display_capture_mouse(newstate);
-        if (newstate && result) {
-            event_queue->addEvent(new Event(EVENT_SHOW_MESSAGE, 0, "Mouse Captured, release with F1"));
-        }
-        return false;
-    }); */
-    computer->sys_event->registerHandler(SDL_EVENT_KEY_DOWN, [this, computer](const SDL_Event &event) {
+    computer->sys_event->registerHandler(SDL_EVENT_KEY_UP, [this, computer](const SDL_Event &event) {
         int key = event.key.key;
         if (key == SDLK_F3) {
             toggle_fullscreen();
             return true;
         }
         if (key == SDLK_F1) { // release or capture mouse
-            /* bool oldstate = mouse_captured;
-            bool result = display_capture_mouse(!oldstate);
-            printf("toggle mouse capture: %d, result: %d\n", !oldstate, result);
-            if (!oldstate) {
-                event_queue->addEvent(new Event(EVENT_SHOW_MESSAGE, 0, "Mouse Captured, release with F1"));
-            } */
             display_capture_mouse_message(!mouse_captured);
             return true;
         }
@@ -124,6 +106,21 @@ video_system_t::video_system_t(computer_t *computer) {
             copy_screen();
         }
         return false;
+    });
+    computer->sys_event->registerHandler(SDL_EVENT_KEY_DOWN, [this, computer](const SDL_Event &event) {
+        int key = event.key.key;
+        switch (key) {
+            case SDLK_F3:
+            case SDLK_F1:
+            case SDLK_F5:
+            case SDLK_F2:
+                return true; // eat the keydown
+            case SDLK_PRINTSCREEN:
+                copy_screen();
+                return true;
+            default:
+                return false;
+        }
     });
     computer->sys_event->registerHandler(SDL_EVENT_MOUSE_BUTTON_DOWN, [this](const SDL_Event &event) {
         if (event.button.button == SDL_BUTTON_MIDDLE) {

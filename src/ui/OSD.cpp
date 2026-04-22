@@ -837,6 +837,11 @@ bool OSD::event(const SDL_Event &event) {
     switch (event.type)
     {
         case SDL_EVENT_KEY_DOWN:
+            if (event.key.key == SDLK_F4) {
+                return(true);
+            }
+            break;
+        case SDL_EVENT_KEY_UP:
             //printf("osd key down: %d %d %d\n", event.key.key, slideStatus, currentSlideStatus);
             if (event.key.key == SDLK_F4) {
                 //SDL_SetWindowRelativeMouseMode(window, false);
