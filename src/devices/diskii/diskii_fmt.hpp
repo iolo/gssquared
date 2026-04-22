@@ -92,9 +92,9 @@ typedef uint8_t sector_62_t[342];
 typedef uint8_t sector_62_ondisk_t[343];
 
 // nibblized Track data structure
-typedef struct {
-    uint16_t size;
-    uint16_t position;
+typedef struct track_s {
+    uint16_t size = 0;
+    uint16_t position = 0;
     uint8_t data[TRACK_SIZE];
 } track_t;
 

@@ -471,6 +471,14 @@ void emit_sector(track_t& tr, sector_t& in, uint8_t volume, uint8_t track, uint8
  * output: streams the nibblized track with gap_a, sectors to the track's data stream.
  */
 void emit_track(nibblized_disk_t& disk, disk_image_t& disk_image, int volume, int track) {
+    // Reset write position/size before emitting. emit_track_byte uses these to
+    // append; if they are not reset here, the first-mount case can see
+    // indeterminate values (the nibblized_disk_t is a POD member of Floppy525
+    // and is not zero-initialized) and either drop all bytes ("track is full")
+    // or write at a random offset, producing a track of pure 0xFF sync bytes
+    // or misaligned sector data.
+    disk.tracks[track].position = 0;
+    disk.tracks[track].size = 0;
     memset(disk.tracks[track].data, 0xFF, TRACK_SIZE); // fill with sync bytes
     emit_gap_a(disk.tracks[track]); // gap A is only at beginning of track.
     for (int s = 0; s < SECTORS_PER_TRACK; s++) {
