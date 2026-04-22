@@ -25,10 +25,20 @@
 #include "util/applekeys.hpp"
 #include "mbus/KeyboardMessage.hpp"
 #include "util/ResetController.hpp"
+#include "util/DebugHandlerIDs.hpp"
 
 // Software should be able to:
 // Read keyboard from register at $C000.
 // Write to the keyboard clear latch at $C010.
+
+inline bool is_key_modifier(const SDL_Event &event) {
+    printf("is_key_modifier: %08X %08X %08X\n", event.key.key, SDLK_LCTRL, SDLK_RGUI);
+
+    if (event.key.key >= SDLK_LCTRL && event.key.key <= SDLK_RGUI) {
+        return true;
+    }
+    return false;
+}
 
 inline void kb_key_pressed(keyboard_state_t *kb_state, uint8_t key) {
     kb_state->kb_key_strobe = key | 0x80;
@@ -73,17 +83,12 @@ uint8_t kb_read_C010(void *context, uint32_t address) {
 
     // Clear the keyboard latch
     kb_clear_strobe(kb_state);
+
     // AKD is "any key down". it is set instantly whenever a key is pressed.
-    // the apple ii keyboard can't report multiple keys. So, just check to see if SDL
-    // sees any key as down.
-    // TODO: alternately we can keep track of all key-down and key-up events and if there are more key down than key up, set AKD.
-    int numkeys;
-    const bool *keyarr = SDL_GetKeyboardState(&numkeys);
-    bool akd = false;
-    for (int i = 0; i < numkeys; i++) {
-        if (keyarr[i]) { akd = true; break; }
-    }
-   
+    // the apple ii keyboard can't report multiple keys. 
+    // We keep track of all key-down and key-up events and if there are more key down than key up, set AKD.
+
+    bool akd = kb_state->key_down_count > 0;
     return kb_state->kb_key_strobe | (akd ? 0x80 : 0x00);
 }
 
@@ -134,6 +139,11 @@ void handle_keydown_iiplus(const SDL_Event &event, keyboard_state_t *kb_state) {
     SDL_Keymod mod = event.key.mod;
     SDL_Keycode key = event.key.key;
 
+    // increase keydown count for non-modifier keys.
+    if (!event.key.repeat && !is_key_modifier(event)) {
+        kb_state->key_down_count++;
+    }
+
     if (DEBUG(DEBUG_KEYBOARD))  decode_key_mod(key, mod);
 
     if ((mod & SDL_KMOD_CTRL) && (key == KEY_RESET)) {
@@ -170,6 +180,14 @@ void handle_keydown_iiplus(const SDL_Event &event, keyboard_state_t *kb_state) {
     }
 }
 
+void handle_keyup(const SDL_Event &event, keyboard_state_t *kb_state) {
+    SDL_Keycode key = event.key.key;
+    // increase keydown count for non-modifier keys.
+    if (! is_key_modifier(event)) {
+        kb_state->key_down_count--;
+    }
+}    
+
 void init_mb_iiplus_keyboard(computer_t *computer, SlotType_t slot) {
     if (DEBUG(DEBUG_KEYBOARD)) fprintf(stdout, "init_keyboard\n");
     keyboard_state_t *kb_state = new keyboard_state_t;
@@ -198,7 +216,7 @@ void init_mb_iiplus_keyboard(computer_t *computer, SlotType_t slot) {
     computer->dispatch->registerHandler(SDL_EVENT_KEY_UP, [kb_state](const SDL_Event &event) {
         if (event.key.key == KEY_RESET) {
             kb_state->reset_control->assert_reset(RST_ID_KEYBOARD, false);
-        }
+        } else handle_keyup(event, kb_state);
         return false;
     });
 }
@@ -216,6 +234,11 @@ void handle_keydown_iie(const SDL_Event &event, keyboard_state_t *kb_state) {
 
         kb_state->reset_control->assert_reset(RST_ID_KEYBOARD, true);
         return;
+    }
+
+    // increase keydown count for non-modifier keys.
+    if (!event.key.repeat && !is_key_modifier(event)) {
+        kb_state->key_down_count++;
     }
 
     if (mod & SDL_KMOD_CTRL) { // still have to handle control this way..
@@ -285,9 +308,18 @@ void init_mb_iie_keyboard(computer_t *computer, SlotType_t slot) {
     computer->dispatch->registerHandler(SDL_EVENT_KEY_UP, [kb_state](const SDL_Event &event) {
         if (event.key.key == KEY_RESET) {
             kb_state->reset_control->assert_reset(RST_ID_KEYBOARD, false);
-        }
+        } else handle_keyup(event, kb_state);
         return false;
     });
+    computer->register_debug_display_handler(
+        "keyboard",
+        DH_KEYBOARD,
+        [kb_state]() -> DebugFormatter * {
+            DebugFormatter *df = new DebugFormatter;
+            df->addLine("key_down_count: %d", kb_state->key_down_count);
+            return df;
+        }
+    );
     // set up the keyboard message.
     kb_state->mk = new message_keyboard_t;
     Message *msg = new KeyboardMessage(kb_state->mk);

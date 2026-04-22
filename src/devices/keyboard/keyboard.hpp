@@ -32,6 +32,7 @@ struct keyboard_state_t {
     message_keyboard_t *mk = nullptr;
     MMU_II *mmu = nullptr;
     ResetController *reset_control = nullptr;
+    int key_down_count = 0;
 } ;
 
 /* uint8_t kb_memory_read(uint16_t address);
