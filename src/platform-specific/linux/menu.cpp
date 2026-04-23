@@ -195,6 +195,10 @@ static void build_menu_bar()
         if (ImGui::MenuItem("Mono Helper", nullptr, ad_on))
             mi->toggleAudioDecorrelation();
 
+        bool rmb_accel = mi->getRightMouseAccel();
+        if (ImGui::MenuItem("Right Mouse Button Accelerate", nullptr, rmb_accel))
+            mi->toggleRightMouseAccel();
+
         ImGui::EndMenu();
     }
 
@@ -310,15 +314,6 @@ bool handleMenuEvent(const SDL_Event *event)
 
     if (!is_mouse_event && !is_key_event)
         return false; // not an input event — never consume it
-
-    // If mouse is captured (relative/grab mode) and the user right-clicks,
-    // release the grab so they can reach the menu bar.
-    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-        event->button.button == SDL_BUTTON_RIGHT)
-    {
-        if (emulated_mouse_captured())
-            release_grab();
-    }
 
     if (emulated_mouse_captured())
         return false; // let the emulator receive input; ImGui menu is hidden

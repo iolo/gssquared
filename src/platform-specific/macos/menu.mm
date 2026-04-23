@@ -112,6 +112,7 @@ I don't know what all these words mean exactly. But I confirmed it does seem to 
 - (void)speed14_3:(id)sender;
 - (void)toggleSleepMode:(id)sender;
 - (void)toggleAudioDecorrelation:(id)sender;
+- (void)toggleRightMouseAccel:(id)sender;
 - (void)controllerMode:(id)sender;
 - (void)monitorComposite:(id)sender;
 - (void)monitorGSRGB:(id)sender;
@@ -171,6 +172,7 @@ I don't know what all these words mean exactly. But I confirmed it does seem to 
 
 - (void)toggleSleepMode:(id)sender { getMenuInterface()->toggleSleepMode(); (void)sender; }
 - (void)toggleAudioDecorrelation:(id)sender { getMenuInterface()->toggleAudioDecorrelation(); (void)sender; }
+- (void)toggleRightMouseAccel:(id)sender { getMenuInterface()->toggleRightMouseAccel(); (void)sender; }
 
 - (void)controllerMode:(id)sender {
 	NSMenuItem *item = (NSMenuItem *)sender;
@@ -213,6 +215,7 @@ I don't know what all these words mean exactly. But I confirmed it does seem to 
 
 #define SETTINGS_TAG_SLEEP_MODE    1
 #define SETTINGS_TAG_AUDIO_DECORR  2
+#define SETTINGS_TAG_RMB_ACCEL     3
 
 @interface SettingsMenuDelegate : NSObject <NSMenuDelegate>
 @end
@@ -224,6 +227,8 @@ I don't know what all these words mean exactly. But I confirmed it does seem to 
 			[item setState:getMenuInterface()->getSleepMode() ? NSControlStateValueOn : NSControlStateValueOff];
 		} else if ([item tag] == SETTINGS_TAG_AUDIO_DECORR) {
 			[item setState:getMenuInterface()->getAudioDecorrelation() ? NSControlStateValueOn : NSControlStateValueOff];
+		} else if ([item tag] == SETTINGS_TAG_RMB_ACCEL) {
+			[item setState:getMenuInterface()->getRightMouseAccel() ? NSControlStateValueOn : NSControlStateValueOff];
 		}
 	}
 }
@@ -510,6 +515,14 @@ static void setupMenus(void) {
 	[audioDecorrItem setTarget:sMenuHandler];
 	[audioDecorrItem setTag:SETTINGS_TAG_AUDIO_DECORR];
 	[settingsMenu addItem:audioDecorrItem];
+
+	NSMenuItem *rmbAccelItem = [[[NSMenuItem alloc]
+		initWithTitle:NSLocalizedString(@"Right Mouse Button Accelerate", nil)
+		       action:@selector(toggleRightMouseAccel:)
+		keyEquivalent:@""] autorelease];
+	[rmbAccelItem setTarget:sMenuHandler];
+	[rmbAccelItem setTag:SETTINGS_TAG_RMB_ACCEL];
+	[settingsMenu addItem:rmbAccelItem];
 
 	// Display menu
 	NSMenu *displayMenu = addMenu(NSLocalizedString(@"Display", nil));

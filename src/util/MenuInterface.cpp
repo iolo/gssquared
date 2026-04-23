@@ -57,6 +57,10 @@ void MenuInterface::toggleAudioDecorrelation() {
 	if (computer_ && computer_->audio_system) computer_->audio_system->toggle_decorrelation();
 }
 
+void MenuInterface::toggleRightMouseAccel() {
+	gs2_app_values.right_mouse_accelerate = !gs2_app_values.right_mouse_accelerate;
+}
+
 int MenuInterface::getCurrentSpeed() {
 	if (!computer_ || !computer_->clock) return -1;
 	return (int)computer_->clock->get_clock_mode();
@@ -83,6 +87,10 @@ bool MenuInterface::getSleepMode() {
 
 bool MenuInterface::getAudioDecorrelation() {
 	return computer_ && computer_->audio_system ? computer_->audio_system->get_decorrelation() : false;
+}
+
+bool MenuInterface::getRightMouseAccel() {
+	return gs2_app_values.right_mouse_accelerate;
 }
 
 bool MenuInterface::isEmulationRunning() {

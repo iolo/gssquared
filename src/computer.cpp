@@ -86,18 +86,19 @@ computer_t::computer_t(NClockII *clock) {
     debug_window = new debug_window_t(this);
 
     sys_event->registerHandler(SDL_EVENT_MOUSE_BUTTON_DOWN,[this](const SDL_Event &event ) {
-        if (event.button.button == SDL_BUTTON_RIGHT) {
+        if (event.button.button == SDL_BUTTON_RIGHT && gs2_app_values.right_mouse_accelerate) {
             old_speed = this->clock->get_clock_mode();
             this->clock->set_clock_mode(CLOCK_14_3MHZ);
             return true;
-        } else return false;
-        
+        }
+        return false;
     });
     sys_event->registerHandler(SDL_EVENT_MOUSE_BUTTON_UP,[this](const SDL_Event &event ) {
-        if (event.button.button == SDL_BUTTON_RIGHT) {
+        if (event.button.button == SDL_BUTTON_RIGHT && gs2_app_values.right_mouse_accelerate) {
             this->clock->set_clock_mode(old_speed);
             return true;
-        } return false;
+        }
+        return false;
     });
     
     sys_event->registerHandler(SDL_EVENT_KEY_DOWN, [this](const SDL_Event &event) {

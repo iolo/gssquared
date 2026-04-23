@@ -43,6 +43,7 @@ public:
 	void setMonitor(int monitor_id);
 	void toggleSleepMode();
 	void toggleAudioDecorrelation();
+	void toggleRightMouseAccel();
 	void displayFullScreen();
 	void editCopyScreen();
 	void editPasteText();
@@ -55,6 +56,7 @@ public:
 	int  getCurrentMonitor();
 	bool getSleepMode();
 	bool getAudioDecorrelation();
+	bool getRightMouseAccel();
 	bool isEmulationRunning();
 	bool isPaused();
 	bool isMouseCaptured();

@@ -18,6 +18,7 @@
 #define IDM_APP_QUIT         801
 #define IDM_SETTINGS_SLEEP        802
 #define IDM_SETTINGS_AUDIO_DECORR 803
+#define IDM_SETTINGS_RMB_ACCEL    804
 #define IDM_HELP_OPEN_DOCS        900
 
 // DEPRECATED: see commented-out WM_ENTERMENULOOP/WM_EXITMENULOOP/WM_TIMER block below.
@@ -183,6 +184,7 @@ static void updatePopupState(HMENU popup)
     if (popup == g_settingsPopup) {
         bool sleeping   = mi->getSleepMode();
         bool decorr_on  = mi->getAudioDecorrelation();
+        bool rmb_accel  = mi->getRightMouseAccel();
         int n = GetMenuItemCount(g_settingsPopup);
         for (int i = 0; i < n; ++i) {
             UINT id = getItemId(g_settingsPopup, i);
@@ -191,6 +193,9 @@ static void updatePopupState(HMENU popup)
                 setItemEnable(g_settingsPopup, i, running);
             } else if (id == IDM_SETTINGS_AUDIO_DECORR) {
                 setItemCheck(g_settingsPopup,  i, decorr_on);
+                setItemEnable(g_settingsPopup, i, running);
+            } else if (id == IDM_SETTINGS_RMB_ACCEL) {
+                setItemCheck(g_settingsPopup,  i, rmb_accel);
                 setItemEnable(g_settingsPopup, i, running);
             } else {
                 // Speed and Controller submenu parent items (id == 0 for submenus)
@@ -269,6 +274,7 @@ static void dispatchCommand(UINT id)
     // Settings
     case IDM_SETTINGS_SLEEP:        mi->toggleSleepMode();         return;
     case IDM_SETTINGS_AUDIO_DECORR: mi->toggleAudioDecorrelation(); return;
+    case IDM_SETTINGS_RMB_ACCEL:    mi->toggleRightMouseAccel();    return;
 
     // Help
     case IDM_HELP_OPEN_DOCS:
@@ -399,6 +405,7 @@ static void setupMenus()
 
     AppendMenuW(g_settingsPopup, MF_STRING, IDM_SETTINGS_SLEEP,        L"Sleep / Busy Wait");
     AppendMenuW(g_settingsPopup, MF_STRING, IDM_SETTINGS_AUDIO_DECORR, L"Mono Helper");
+    AppendMenuW(g_settingsPopup, MF_STRING, IDM_SETTINGS_RMB_ACCEL,    L"Right Mouse Button Accelerate");
 
     AppendMenuW(g_menuBar, MF_STRING | MF_POPUP,
                 reinterpret_cast<UINT_PTR>(g_settingsPopup), L"Settings");
