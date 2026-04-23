@@ -126,7 +126,25 @@ endif()
 set(BUILD_SHARED_LIBS OFF)
 
 # First, create a target to assemble all resources into build/ directory.
-add_custom_target(assemble_resources ALL
+# Glob all asset files so Ninja can track them as real inputs. Without this,
+# add_custom_target's CUSTOM_COMMAND has no dependencies and Ninja skips it
+# after the first successful run (recorded as clean in .ninja_log), leaving
+# stale copies under build/resources/ even when source assets change.
+# CONFIGURE_DEPENDS makes CMake re-glob on each build, picking up added files.
+file(GLOB_RECURSE GS2_ASSET_FILES CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/assets/roms/*"
+    "${CMAKE_SOURCE_DIR}/assets/sounds/*"
+    "${CMAKE_SOURCE_DIR}/assets/fonts/*"
+)
+list(APPEND GS2_ASSET_FILES
+    "${CMAKE_SOURCE_DIR}/assets/img/atlas.png"
+    "${CMAKE_SOURCE_DIR}/assets/img/gs2.icns"
+)
+
+set(GS2_RESOURCES_STAMP "${CMAKE_BINARY_DIR}/resources/.assembled.stamp")
+
+add_custom_command(
+    OUTPUT "${GS2_RESOURCES_STAMP}"
     # Create resources directory structure
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/resources
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/resources/roms
@@ -140,7 +158,14 @@ add_custom_target(assemble_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/assets/roms ${CMAKE_BINARY_DIR}/resources/roms
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/assets/sounds ${CMAKE_BINARY_DIR}/resources/sounds
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/assets/fonts ${CMAKE_BINARY_DIR}/resources/fonts
+
+    COMMAND ${CMAKE_COMMAND} -E touch "${GS2_RESOURCES_STAMP}"
+    DEPENDS ${GS2_ASSET_FILES}
+    COMMENT "Assembling resources into build/resources/"
+    VERBATIM
 )
+
+add_custom_target(assemble_resources ALL DEPENDS "${GS2_RESOURCES_STAMP}")
 
 function(configure_sdl_builds)
     set(BUILD_SHARED_LIBS ON)
@@ -393,6 +418,9 @@ target_link_libraries(GSSquared
     gs2_diskii
     platform_specific
 )
+
+# Ensure building just GSSquared still triggers the resource assembly step.
+add_dependencies(GSSquared assemble_resources)
 
 add_subdirectory(apps/adbtest)
 
