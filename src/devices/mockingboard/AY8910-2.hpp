@@ -9,6 +9,7 @@
 #include "util/InterruptController.hpp"
 #include "util/AudioSystem.hpp"
 #include "NClock.hpp"
+#include <cmath>
 
 enum AY_Registers {
     A_Tone_Low = 0,

@@ -1,9 +1,8 @@
 #pragma once
 
 #include <vector>
-//#include "gs2.hpp"
-//#include "cpu.hpp"
-//#include "NClock.hpp"
+#include <cstdint>
+
 class NClockII;  // forward declare instead of include
 
 class EventTimer {
